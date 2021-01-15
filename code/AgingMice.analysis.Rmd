@@ -1,0 +1,891 @@
+---
+title: MtD2 transfer from immune cells in aging mice.
+author: 
+- name: Nick Borcherding
+  email: ncborch@gmail.com
+  affiliation: Washington University in St. Louis, School of Medicine, St. Louis, MO, USA
+- name: Jonathan R. Brestoff
+  email: Brestoff@wustl.edu
+  affiliation: Washington University in St. Louis, School of Medicine, St. Louis, MO, USA
+date: "January 15th 2020"
+output:
+  BiocStyle::html_document:
+    toc_float: true
+vignette: >
+  %\VignetteEngine{knitr::knitr}
+  %\VignetteIndexEntry{MtD2 Data Analysis}
+  %\usepackage[UTF-8]{inputenc}
+---
+
+# Prepping analysis
+
+## Load Libraries
+```{r}
+library(flowCore)
+library(CATALYST)
+library(viridis)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(ggthemes)
+```
+
+## Load Data Inventory
+
+```{r}
+library(readxl)
+files <- read_xlsx("file.inventory.xlsx")
+```
+
+
+## Load Flow Data and Trandorm
+
+```{r}
+############################
+#Version 1: Precompensation
+############################
+
+fs2 <- read.flowSet(paste0("./data/", files$file_id), transformation = FALSE, truncate_max_range = FALSE)
+
+
+transList <- estimateLogicle(fs2[[1]], names(markernames(fs2[[1]])))
+fs_comp2 <- transform(fs2, transList)
+saveRDS(fs_comp2, file = "trans_flowset.rds")
+```
+
+## Generating a single-cell object
+
+Before we filter out for single-cells and by morphology, we will form the single cell object. For some reason filtering in the original flowCore will change the result into a new type of object that will not load into catalyst.
+
+Deviations from standard workflow
+1) Added additional meta data columsn
+2) Set FACS == True - retains all markers
+3) transform == False - just performed all the transformations
+
+
+```{r}
+fs_comp2 <- readRDS("comp_flowset.rds")
+
+"fcs_colname" <- c(names(markernames(fs_comp2)), "SSC-H", "SSC-A", "FSC-H", "FSC-A")
+"antigen" <-  c(unname(markernames(fs_comp2)), "SSC.H", "SSC.A", "FSC.H", "FSC.A")
+panel <- data.frame(fcs_colname, antigen)
+panel$marker_class <- ifelse(panel$antigen %in% c("NKp46", "mtD2"), "state", 
+                             ifelse(panel$antigen %in% c("Zombie", "SSC.H", "SSC.A", "FSC.H", "FSC.A") , "none", "type"))
+
+files$file_origin <- files$file_id
+sce <- prepData(fs_comp2, panel, files, features = panel$fcs_colname, 
+                md_cols = list(file = "file_id", id = "sample_id", factors = c("condition",
+    "patient_id", "age", "file_origin")), FACS = TRUE, transform = FALSE)
+
+assayNames(sce) <- "exprs" #This is the default assay for CATALYST
+saveRDS(sce, file = "sce_logicale.rds")
+```
+
+**************
+
+# Clustering Flow Data
+
+## Filtering Gates
+
+Filtering the samples using traditional flow workflow
+1. Filter by FSC.A and SSC.A
+2. Single-cell gate that isolate cells with a linear relationship
+3. Removing cells with excess DNA (doublet or dead) using zombie
+
+```{r}
+sce <- readRDS("sce_logicale.rds")
+
+chs <- c("FSC.A", "SSC.A")
+pdf("./visualizations/flow_FSC.AvSSC.A.pdf", height =4, width = 4)
+plotScatter(sce, chs)
+dev.off()
+sce <- filterSCE(sce, sce@assays@data$exprs["FSC.A",] >= 500000 & sce@assays@data$exprs["FSC.A",] <= 4000000)
+sce <- filterSCE(sce, sce@assays@data$exprs["SSC.A",] >= 100000  & sce@assays@data$exprs["SSC.A",] <= 4000000)
+
+pdf("./visualizations/flow_FSC.AvSSC.A_cutoff.pdf", height =4, width = 4)
+plotScatter(sce, chs)
+dev.off()
+
+chs <- c("FSC.H", "FSC.A")
+pdf("./visualizations/flow_FSC.AvFSC.H.pdf", height =4, width = 4)
+plotScatter(sce, chs)
+dev.off()
+
+sce <- filterSCE(sce, sce@assays@data$exprs["FSC.H",]/sce@assays@data$exprs["FSC.A",] >= 0.75 &
+                     sce@assays@data$exprs["FSC.H",]/sce@assays@data$exprs["FSC.A",] <= 1.25)
+
+sce <- filterSCE(sce, sce@assays@data$exprs["FSC.H",] <= 2000000 &
+                     sce@assays@data$exprs["FSC.A",] <= 2000000)
+
+pdf("./visualizations/flow_FSC.AvFSC.H_cutoff.pdf", height =4, width = 4)
+plotScatter(sce, chs)
+dev.off()
+
+chs <- c("FSC.A", "Zombie")
+pdf("./visualizations/flow_FSC.AvZombie.pdf", height =4, width = 4)
+plotScatter(sce, chs)
+dev.off()
+sce <- filterSCE(sce, sce@assays@data$exprs["Zombie",] <= 2.1)
+
+pdf("./visualizations/flow_FSC.AvZombie_cutoff.pdf", height =4, width = 4)
+plotScatter(sce, chs)
+dev.off()
+
+
+saveRDS(sce, file = "sce_flowset_filtered_logical.rds")
+sce <- readRDS("sce_flowset_filtered_logical.rds")
+```
+
+## Clustering the single-cells and calculating the dimensional reduction
+
+```{r}
+dir.create("./visualizations")
+set.seed(1234)
+sce <- cluster(sce, features = "type",
+    xdim = 10, ydim = 10, maxK = 40, seed = 1234)
+delta_area(sce)
+ggsave("./visualizations/Clusterdelta.pdf")
+
+set.seed(1234)
+sce <- runDR(sce, "TSNE", cells = 1e4, features = "type")
+sce <- runDR(sce, "UMAP", cells = 1e4, features = "type")
+```
+
+
+## Inspecting clusters across tSNE and UMAP reduction
+
+Examine stability of cluster assignments along the embedded manifolds
+
+```{r}
+library(ggplot2)
+library(cowplot)
+
+dir.create("./visualizations/clusterRefine")
+
+for (i in 10:40) {
+    p1 <- plotDR(sce, "TSNE", color_by = paste0("meta", i)) + 
+    theme_classic()
+    p2 <- plotDR(sce, "UMAP", color_by = paste0("meta", i)) + theme_classic()
+    ggsave(paste0("./visualizations/clusterRefine/TSNE_plot_cluster", i, ".pdf"), p1, height = 3.5, width = 4.5)
+    ggsave(paste0("./visualizations/clusterRefine/UMAP_plot_cluster", i, ".pdf"), p2, height = 3.5, width = 4.5)
+}
+```
+
+## Saving and visualizing final selection
+
+Defining the custers as "meta24"
+```{r}
+p1 <- plotDR(sce, "TSNE", color_by = "meta24") + 
+    theme(legend.position = "none") + 
+    theme_classic()
+p1
+ggsave("./visualizations/TSNE_plot.pdf", p1, height = 3.5, width = 5)
+ggsave("./visualizations/TSNE_plot.png", p1, height = 3.5, width = 5, dpi = 400)
+p2 <- plotDR(sce, "UMAP", color_by = "meta24") + theme_classic()
+ggsave("./visualizations/UMAP_plot.pdf", p2, height = 3.5, width = 5)
+
+ggsave("./visualizations/UMAP_plot.png", p2, height = 3.5, width = 5, dpi=400)
+
+library(viridis)
+pdf("./visualizations/CATALYST_clusterHeatmap.pdf", height=5, width=10)
+plotExprHeatmap(sce, features = "type", 
+    by = "cluster_id", k = "meta24", hm_pal = viridis_pal()(10),
+    bars = TRUE, perc = TRUE)
+dev.off()
+```
+
+## Removing Doublets and Reclustering
+
+We selected meta24 - just like last time, however there are some clusters with multi-lineage marker expression - specifcially for meta24 the clusters are 3 and 4 (a total of 66,451 cells)
+
+```{r}
+sce <- filterSCE(sce, cluster_id %in% c(1,2,5:24), k = "meta24")
+
+sce <- cluster(sce, features = "type",
+    xdim = 10, ydim = 10, maxK = 40, seed = 1234)
+delta_area(sce)
+ggsave("./visualizations/Clusterdelta.pdf")
+
+set.seed(1234)
+sce <- runDR(sce, "TSNE", cells = 1e4, features = "type")
+sce <- runDR(sce, "UMAP", cells = 1e4, features = "type")
+
+dir.create("./visualizations/clusterRefine")
+
+for (i in 10:40) {
+    p1 <- plotDR(sce, "TSNE", color_by = paste0("meta", i)) + 
+    theme_classic()
+    p2 <- plotDR(sce, "UMAP", color_by = paste0("meta", i)) + theme_classic()
+    ggsave(paste0("./visualizations/clusterRefine/TSNE_plot_cluster", i, ".pdf"), p1, height = 3.5, width = 4.5)
+    ggsave(paste0("./visualizations/clusterRefine/UMAP_plot_cluster", i, ".pdf"), p2, height = 3.5, width = 4.5)
+}
+
+############################################
+#Selecting Meta25 this time for clustering
+############################################
+
+p1 <- plotDR(sce, "TSNE", color_by = "meta25") + 
+    theme(legend.position = "none") + 
+    theme_classic()
+p1
+ggsave("./visualizations/TSNE_plot.pdf", p1, height = 3.5, width = 5)
+ggsave("./visualizations/TSNE_plot.png", p1, height = 3.5, width = 5, dpi = 400)
+p2 <- plotDR(sce, "UMAP", color_by = "meta25") + theme_classic()
+ggsave("./visualizations/UMAP_plot.pdf", p2, height = 3.5, width = 5)
+
+ggsave("./visualizations/UMAP_plot.png", p2, height = 3.5, width = 5, dpi=400)
+
+library(viridis)
+pdf("./visualizations/CATALYST_clusterHeatmap.pdf", height=5, width=10)
+plotExprHeatmap(sce, features = "type", 
+    by = "cluster_id", k = "meta25", hm_pal = viridis_pal()(10),
+    bars = TRUE, perc = TRUE)
+dev.off()
+```
+
+## Relative proportion by cluster ID
+
+```{r}
+table <- table(sce@metadata$cluster_codes[,"meta25"][sce@colData$cluster_id], sce@colData$age)
+
+for (i in 1:2) {
+    table[,i] <- table[,i]/sum(table[,i])
+}
+
+table <- reshape2::melt(table)
+
+ggplot(table, aes(x = reorder(as.factor(Var1), -Var1), y = value, fill = Var2)) + 
+    geom_bar(stat="identity", position = "fill") + 
+    geom_hline(yintercept = 0.5, lty= 2) + 
+    theme_classic() + 
+    guides(fill = F)+
+    scale_fill_tableau() + coord_flip()
+ggsave("./visualizations/Proportion_clusterbyAge.pdf", height=4, width = 3)
+
+
+table <- table(sce@colData$major, sce@colData$age)
+
+for (i in 1:2) {
+    table[,i] <- table[,i]/sum(table[,i])
+}
+
+table <- reshape2::melt(table)
+
+ggplot(table, aes(x = Var1, y = value, fill = Var2)) + 
+    geom_bar(stat="identity", position = "fill") + 
+    geom_hline(yintercept = 0.5, lty= 2) + 
+    theme_classic() + 
+    guides(fill = F)+
+    scale_x_discrete(limits = rev) + 
+    scale_fill_tableau() + coord_flip()
+ggsave("./visualizations/Proportion_MajorbyAge.pdf", height=4, width = 3)
+
+
+```
+
+## Looking at marker expression 
+
+```{r}
+dir.create("./visualizations/markers")
+mark <- rownames(sce@assays@data$exprs)
+
+for (i in seq_along(mark)) {
+    plot <- plotDR(sce, "UMAP", color_by = mark[i]) + theme_classic()
+    ggsave(paste0("./visualizations/markers/UMAP_", stringr::str_remove(mark[i], "/"), ".pdf"), plot, height = 3.5, width = 4.25)
+}
+
+for (i in seq_along(mark)) {
+    plot <- plotDR(sce, "TSNE", color_by = mark[i]) + theme_classic()
+    ggsave(paste0("./visualizations/markers/TSNE_", stringr::str_remove(mark[i], "/"), ".pdf"), plot, height = 3.5, width = 4.25)
+    ggsave(paste0("./visualizations/markers/TSNE_", stringr::str_remove(mark[i], "/"), ".png"), dpi = 400, plot, height = 3.5, width = 4.25)
+    
+}
+```
+
+
+## Manual gating
+
+Some cells have a tendency to cluster together with clear seperation in identity. Notably 
+1) NK cells and CD8 cells, we will split these using TCRb expression
+2) Myeloid cells - seperate with SIGLECF and CD11c
+
+```{r}
+#####################
+#Splitting Cluster 9
+#####################
+
+sce <- readRDS("final.sce.object.rds")
+library(CATALYST)
+library(ggplot2)
+sub <-filterSCE(sce, cluster_id %in% c(9), k = "meta25")
+
+chs <- c("NK1.1", "TCRb")
+plotScatter(sub, chs)
+oldCluster <- as.character(sce@metadata$cluster_codes$meta25[sce@colData$cluster_id])
+index <- which(oldCluster == 9 & sce@assays@data$exprs["TCRb",] > 1)
+
+ID <- as.data.frame(sub@colData)
+clusterCodes <- sub@metadata$cluster_codes
+
+sce@colData$cluster_id[index] <- 7
+
+plotDR(sce, color_by = "meta25")
+
+#####################
+#Splitting Cluster 16
+#####################
+
+sub <-filterSCE(sce, cluster_id %in% c(16), k = "meta25")
+
+chs <- c("NK1.1", "TCRb")
+plotScatter(sub, chs)
+plotDR(sub, color_by = "TCRb", scale = F)
+oldCluster <- as.character(sce@metadata$cluster_codes$meta25[sce@colData$cluster_id])
+index <- which(oldCluster == 16 & sce@assays@data$exprs["TCRb",] < 1.1)
+
+ID <- as.data.frame(sub@colData)
+clusterCodes <- sub@metadata$cluster_codes
+x <- which(clusterCodes[,25] == 9)[1]
+sce@colData$cluster_id[index] <- x
+
+
+#################
+#Assigning Cluster 8 and 20 DC
+
+sub <-filterSCE(sce, cluster_id %in% c(8), k = "meta25")
+
+
+chs <- c("CD11c", "SiglecF")
+plotScatter(sub, chs)
+
+oldCluster <- as.character(sce@metadata$cluster_codes$meta25[sce@colData$cluster_id])
+index <- which(oldCluster == 8 & sce@assays@data$exprs["SiglecF",] <= 1)
+
+sub <-filterSCE(sce, cluster_id %in% c(20), k = "meta25")
+
+
+chs <- c("CD11c", "SSC.H")
+plotScatter(sub, chs)
+
+
+
+oldCluster <- as.character(sce@metadata$cluster_codes$meta25[sce@colData$cluster_id])
+index2 <- which(oldCluster == 20 & sce@assays@data$exprs["CD11c",] >= 1.25)
+index <- c(index, index2)
+
+ID <- as.data.frame(sub@colData)
+clusterCodes <- sub@metadata$cluster_codes
+x <- which(clusterCodes[,25] == 10)[1]
+
+sce@colData$cluster_id[index] <- x
+```
+
+## Annotating clusters
+
+Inspecting the expression of markers with the heatmap and tSNE plot overlays, we came up with the following annotations for cell types by cluster ID. 
+
+```{r}
+annot <- readxl::read_xlsx("cluster.annotations.xlsx")
+
+
+annot <- annot[,c(1,4)]
+colnames(annot) <- c("original_cluster", "new_cluster")
+annot$new_cluster <-  make.names(annot$new_cluster, unique = TRUE)
+
+annot$new_cluster <- factor(
+    annot$new_cluster, 
+    levels = c(annot$new_cluster))
+
+sce <- mergeClusters(sce, k = "meta25", 
+    table = annot, id = "merging2")
+
+annot <- readxl::read_xlsx("cluster.annotations.xlsx")[,1:4]
+merge <- data.frame(sce@metadata$cluster_codes$merging2, sce@metadata$cluster_codes$meta25)
+colnames(merge) <- c("specific", "met25")
+merge$cluster_id <- seq.int(nrow(merge))
+merge <- merge(merge, annot, by.x = "met25", by.y = "Cluster")
+
+data<- as.data.frame(colData(sce))
+
+
+data <- plyr::join(data, merge, by = "cluster_id")
+
+sce@colData$specific <- data$specific
+sce@colData$major <- data$Major
+sce@colData$profile <- data$Profile
+sce@colData$identity <- data$Identity
+
+saveRDS(sce, "final.sce.object_annotated.rds")
+
+sce <- readRDS("final.sce.object_annotated.rds")
+
+
+#############################################
+#Overall Dimensional Reductions Used
+############################################
+
+plotDR(sce, "TSNE", color_by = "meta25") + 
+    theme(legend.position = "none") + 
+    theme_void() + 
+guides(color = F)
+ggsave("./visualizations/Celltype/TSNE_plot_editedclusters.png", height = 3.5, width = 3.5, dpi = 600)
+
+
+plotDR(sce, "TSNE", color_by = "major") + 
+    theme_void() + 
+    guides(color = F) + 
+    scale_colour_tableau()
+ggsave("./visualizations/Celltype/TSNE_celltype.png", height=3.5, width=3.5, dpi = 600)
+
+
+plotDR(sce, "TSNE", color_by = "major") + 
+    facet_wrap(~sce$sample_id[index]) + 
+    theme_void() + 
+    scale_colour_tableau() + 
+    theme(strip.background = element_blank(),
+  strip.text = element_blank()) + 
+    guides(color = F)
+ggsave("./visualizations/Celltype/TSNE_type_ByTissue.png", height = 7, width = 10.5, dpi = 600)
+
+pal <- tableau_color_pal()(9)
+
+#############################################
+#Defining Relative Proportion by Tissue Type
+############################################
+table <- table(sce@colData$sample_id, sce@colData$major)
+for (i in seq_len(nrow(table))) {
+    table[i,] <- table[i,]/sum(table[i,])
+}
+
+table <- reshape2::melt(table)
+ggplot(table, aes(x=Var1, y = value, fill = Var2)) +
+    geom_bar(stat="identity", position = "fill") + 
+    scale_fill_manual(values = pal) +
+    scale_x_discrete(limits = rev) + 
+    coord_flip() +
+    theme_classic() + 
+    labs(fill = "Cell Types") + 
+    theme(axis.title = element_blank())
+
+ggsave("./visualizations/Celltype/relativeProportion.pdf", height=3, width=5)
+
+
+
+plot <- plotExprHeatmap(sce, features = "type", 
+        by = "cluster_id", k = "meta25", hm_pal = viridis_pal()(10),
+        bars = TRUE, perc = TRUE)
+    pdf(paste0("./visualizations/Celltype/heatmap.pdf"), height=5, width=10)
+    print(plot)
+    dev.off()
+
+```
+```{r}
+plotDR(sce, "TSNE", color_by = "merging2") + 
+    theme(legend.position = "none") + 
+    theme_classic()
+ggsave("./visualizations/Celltype/TSNE_celltypeX.pdf", height=3, width=6)
+
+
+
+plotExprHeatmap(sce, features = "type", 
+        by = "cluster_id", k = "meta25", hm_pal = viridis_pal()(10),
+        bars = TRUE, perc = TRUE)
+
+
+
+plot <- plotExprHeatmap(sce, features = "type", 
+        by = "cluster_id", k = "merging2", hm_pal = viridis_pal()(10),
+        bars = TRUE, perc = TRUE)
+
+pdf(paste0("./visualizations/Celltype/heatmap_x.pdf"), height=5, width=14)
+    print(plot)
+    dev.off()
+```
+
+*********************
+
+# Subsetting Adipose Tissue Samples
+
+```{r}
+dir.create(paste0("subclustered/"))
+dir.create(paste0("subclustered/", "Adipose"))
+
+tmp <- filterSCE(sce, as.factor(sce$sample_id) == "BAT" | as.factor(sce$sample_id) == "eWAT" | as.factor(sce$sample_id) == "iWAT")
+
+########################################
+#Reclustering and Dimensional Reduction
+#########################################
+
+tmp <- cluster(tmp, features = "type",
+    xdim = 10, ydim = 10, maxK = 30, seed = 1234)
+delta_area(tmp)
+ggsave(paste0("subclustered/", "Adipose", "/Clusterdelta.pdf"))
+    
+set.seed(1234)
+tmp <- runDR(tmp, "TSNE", cells = 1e4, features = "type")
+tmp <- runDR(tmp, "UMAP", cells = 1e4, features = "type")
+    
+dir.create(paste0("subclustered/", "Adipose", "/clusterRefine"))
+               
+    for (ii in 5:30) {
+        p1 <- plotDR(tmp, "TSNE", color_by = paste0("meta", ii)) + 
+        theme_classic()
+        p2 <- plotDR(tmp, "UMAP", color_by = paste0("meta", ii)) + theme_classic()
+        ggsave(paste0("subclustered/", "Adipose", "/clusterRefine/TSNE_plot_cluster", ii, ".pdf"), p1, height = 3.5, width = 4.5)
+        ggsave(paste0("subclustered/", "Adipose", "/clusterRefine/UMAP_plot_cluster", ii, ".pdf"), p2, height = 3.5, width = 4.5)
+        p3 <- plotDR(tmp, "TSNE", color_by = paste0("meta", ii), facet_by = "sample_id") + 
+        theme_classic()
+        ggsave(paste0("subclustered/", "Adipose", "/clusterRefine/TSNE_plot_cluster", ii, "_faceted.pdf"), p3, height = 7, width = 9)
+        p4 <- plotDR(tmp, "UMAP", color_by = paste0("meta", ii), facet_by = "sample_id") + 
+        theme_classic()
+        ggsave(paste0("subclustered/", "Adipose", "/clusterRefine/UMAP_plot_cluster", ii, "_faceted.pdf"), p4, height = 7, width = 9)
+    }
+
+    
+
+pdf(paste0("subclustered/", "Adipose", "/CATALYST_clusterHeatmap.pdf"), height=5, width=10)
+plotExprHeatmap(tmp, features = "type", 
+    by = "cluster_id", k = "meta16", hm_pal = viridis_pal()(10),
+    bars = TRUE, perc = TRUE)
+dev.off()
+
+saveRDS(tmp, "Adipose.rds")
+tmp <- readRDS("Adipose.rds")
+
+plotDR(tmp, "TSNE", color_by = "major") + theme_classic()
+
+plotDR(tmp, "TSNE", color_by = "specific") + theme_classic()
+
+plotDR(tmp, "TSNE", color_by = "meta16", facet_by = "sample_id") + 
+        theme_classic()
+
+plotDR(tmp, "TSNE", color_by = "meta16") + 
+        theme_classic()
+```        
+
+        
+## Manual Gating
+
+Similar issues with clarifying T cell and NK cell clusters
+
+```{r}
+#Cluster 5 has a CD4 population near the orange cluster 7 and a CD8 population at the bottom
+        
+######################################################        
+# CLUSTER 7 needs to be dividied into NK and T cells      
+##################################################       
+   
+        
+sub <-filterSCE(tmp, cluster_id %in% c(7), k = "meta16")
+
+chs <- c("NK1.1", "TCRb")
+plotScatter(sub, chs)  
+oldCluster <- as.character(tmp@metadata$cluster_codes$meta16[tmp@colData$cluster_id])
+index <- which(oldCluster == 7 & tmp@assays@data$exprs["TCRb",] > 1)
+
+ID <- as.data.frame(sub@colData)
+clusterCodes <- sub@metadata$cluster_codes
+x <- which(clusterCodes[,16] == 5)[1]
+tmp@colData$cluster_id[index] <- x
+        
+plotDR(tmp, "TSNE", color_by = "meta16") + 
+        theme_classic()
+
+
+###########################################
+#Cluster 2 has a CD45+ and CD45- population
+###########################################
+#Cluster 2 CD45- to Cluster 11
+sub <-filterSCE(tmp, cluster_id %in% c(2), k = "meta16")
+
+chs <- c("SSC.A", "CD45")
+plotScatter(sub, chs)  
+oldCluster <- as.character(tmp@metadata$cluster_codes$meta16[tmp@colData$cluster_id])
+index <- which(oldCluster == 2 & tmp@assays@data$exprs["CD45",] <= 1.2)
+
+ID <- as.data.frame(sub@colData)
+clusterCodes <- sub@metadata$cluster_codes
+x <- which(clusterCodes[,16] == 11)[1]
+tmp@colData$cluster_id[index] <- x
+        
+plotDR(tmp, "TSNE", color_by = "meta16") + 
+        theme_classic()
+
+
+
+####
+#Cluster 8 also has a predominant gamma-delta T cell population
+# portion of cluster 8 is TCRB positive and CD4 positive and KLRG1 positive and CD25-high 
+
+sub <- filterSCE(tmp, cluster_id %in% c(8), k = "meta16")
+
+plotDR(sub, "TSNE", color_by = "cluster_id") + 
+        theme_classic()
+
+#Cluster_id 29 and 30 are Tregs 
+x <- tmp@metadata$cluster_codes$meta16
+x <- factor(x, levels = c(levels(x), 17))
+
+x[29] <- 17
+x[30] <- 17
+tmp@metadata$cluster_codes$meta16 <- x
+
+#cluster 59 and 60 are TCRgd
+x <- tmp@metadata$cluster_codes$meta16
+x <- factor(x, levels = c(levels(x), 18))
+
+x[60] <- 18
+x[59] <- 18
+tmp@metadata$cluster_codes$meta16 <- x
+
+plotDR(tmp, "TSNE", color_by = "meta16") + 
+        theme_classic()
+
+#####################################
+#Split cluster 5 to CD4 and CD8 T cells
+######################################
+
+sub <- filterSCE(tmp, cluster_id %in% c(5), k = "meta16")
+
+plotDR(sub, "TSNE", color_by = "cluster_id") + 
+        theme_classic()
+
+#Cluster_id 17,18,27 are CD8 T cells
+x <- tmp@metadata$cluster_codes$meta16
+x <- factor(x, levels = c(levels(x), 19))
+
+x[17] <- 19
+x[18] <- 19
+x[27] <- 19
+
+tmp@metadata$cluster_codes$meta16 <- x
+
+#cluster 7 nd 8 are activate T cells
+x <- tmp@metadata$cluster_codes$meta16
+x <- factor(x, levels = c(levels(x), 20))
+
+x[7] <- 20
+x[8] <- 20
+tmp@metadata$cluster_codes$meta16 <- x
+
+plotDR(tmp, "TSNE", color_by = "meta16") + 
+        theme_classic()
+
+
+#####################################
+#Split cluster 14
+######################################
+
+sub <- filterSCE(tmp, cluster_id %in% c(14), k = "meta16")
+
+plotDR(sub, "TSNE", color_by = "cluster_id") + 
+        theme_classic()
+
+#Cluster_id B220 low
+x <- tmp@metadata$cluster_codes$meta16
+x <- factor(x, levels = c(levels(x), 21))
+
+x[83] <- 21
+x[84] <- 21
+x[93] <- 21
+tmp@metadata$cluster_codes$meta16 <- x
+
+#####Removing C16
+tmp <-filterSCE(tmp, cluster_id != 16, k = "meta16")
+tmp <- filterSCE(tmp, cluster_id != 10, k = "meta16")
+
+#########################
+#Split Cluster 20 into CD4+ and CD8+
+sub <-filterSCE(tmp, cluster_id %in% c(20), k = "meta16")
+
+chs <- c("CD4", "CD8")
+plotScatter(sub, chs)  
+oldCluster <- as.character(tmp@metadata$cluster_codes$meta16[tmp@colData$cluster_id])
+index <- which(oldCluster == 20 & tmp@assays@data$exprs["CD8",] > 1)
+
+
+ID <- as.data.frame(sub@colData)
+clusterCodes <- sub@metadata$cluster_codes
+
+x <- which(clusterCodes[,16] == 16)[1]
+tmp@colData$cluster_id[index] <- x
+
+#########################
+#Reassigning Cluster 21 to 10
+
+oldCluster <- as.character(tmp@metadata$cluster_codes$meta16[tmp@colData$cluster_id])
+index <- which(oldCluster == 21)
+
+
+ID <- as.data.frame(tmp@colData)
+clusterCodes <- tmp@metadata$cluster_codes
+
+x <- which(clusterCodes[,16] == 10)[1]
+tmp@colData$cluster_id[index] <- x
+        
+plotDR(tmp, "TSNE", color_by = "meta16") + 
+        theme_classic()
+
+
+
+plotDR(tmp, "TSNE", color_by = "meta16") + 
+        theme_classic()
+
+saveRDS(tmp, "adipose_clusterRefine.rds")
+```
+
+
+
+```{r}
+tmp <- readRDS("adipose_clusterRefine.rds")
+
+tmp2 <- filterSCE(tmp, tmp@colData$condition != "Cre")
+tmp2@colData$age <- factor(tmp2@colData$age, levels = c("5mo", "20mo"))
+index <- which(!is.na(tmp2@int_colData$reducedDims$TSNE[,1]))
+
+#################################
+#tSNE plot by Tissuue and Age
+#################################
+update_geom_defaults("point", list(stroke=0.5))
+tmp2@colData$sample_id <- factor(tmp2@colData$sample_id, levels = c("eWAT", "iWAT", "BAT"))
+plotDR(tmp2, "TSNE", color_by = "meta16", facet_by = "sample_id") + 
+    facet_grid(tmp2$sample_id[index] ~ tmp2$age[index]) + 
+        theme_void() + 
+    guides(color = F) + 
+    theme(strip.background = element_blank(),
+  strip.text = element_blank())
+ggsave(paste0("subclustered/", "Adipose/", "tsne_facetedAgeVsTissue.png"), height = 5.25, width = 3.5, dpi = 600)
+        
+#################################
+#tSNE plot by mtD2 positivity
+#################################
+update_geom_defaults("point", list(alpha = 0.5))
+tmp2@colData$pos <- ifelse(tmp2@colData$mtD2 >= 2, "yes", "no") #Defining mtD2+ as >= 2
+plotDR(tmp2, "TSNE", color_by = "pos") + 
+    facet_grid(tmp2$sample_id[index] ~ tmp2$age[index]) + 
+        theme_void() + 
+    guides(color = F) + 
+    theme(strip.background = element_blank(),
+  strip.text = element_blank()) + 
+scale_color_manual(values = c("grey", "#440154FF")) 
+ggsave(paste0("subclustered/", "Adipose/", "tsne_2cp.png"), height = 5.25, width = 3.5, dpi = 600)
+
+```
+
+## Adding Annotation for Clusters
+
+```{r}
+annot <- readxl::read_xlsx("adipose.clusters.xlsx")
+
+colnames(annot) <- c("original_cluster", "type", "new_cluster")
+annot <- annot[,c(1,3)]
+
+annot$new_cluster <- factor(
+    annot$new_cluster, 
+    levels = c(annot$new_cluster))
+
+tmp2 <- mergeClusters(tmp2, k = "meta16", 
+    table = annot, id = "merging2")
+
+colnames(annot) <- c("original_cluster", "type", "new_cluster")
+
+merge <- data.frame(tmp2@metadata$cluster_codes$merging2, tmp2@metadata$cluster_codes$meta16)
+colnames(merge) <- c("specific", "met16")
+merge$cluster_id <- seq.int(nrow(merge))
+merge <- merge(merge, annot, by.x = "met16", by.y = "original_cluster")
+
+data<- as.data.frame(colData(tmp2))
+
+data <- plyr::join(data, merge, by = "cluster_id")
+
+tmp2@colData$adipose.cluster <- data$new_cluster
+tmp2@colData$cell.type <- stringr::str_split(data$new_cluster, "_", simplify = T)[,1]
+tmp2@colData$cell.major <- ifelse(tmp2@colData$cell.type %in% c("CD4","CD8", "GD"), "Tcells",
+        ifelse(tmp2@colData$cell.type %in% c("Macrophage","Dendritic Cells"), "Myeloid", tmp2@colData$cell.type))
+
+################################################
+#Relative Proportion Plotting for Age and Tissue
+###############################################
+
+y <- as.data.frame(colData(tmp2)) %>% group_by(sample_id, age, cell.major, .drop = F) %>%
+    summarise(n = n())
+library(ggthemes)
+pal <- tableau_color_pal()(9)
+
+
+ggplot(y, aes(x=age, y = n, fill = cell.major)) +
+    geom_bar(stat="identity", position = "fill") + 
+    scale_fill_manual(values = pal) +
+    scale_x_discrete(limits = rev) + 
+    coord_flip() +
+    facet_grid(sample_id ~.) + 
+    theme_classic() + 
+    labs(fill = "Cell Types") + 
+    theme(axis.title = element_blank())
+
+ggsave("subclustered/Adipose/relativeProportion.pdf", height=5, width=5)
+
+saveRDS(tmp, "adipose_annotated.rds")
+```
+
+
+## MtD2 positivity Plotting
+
+
+
+```{r}
+
+pal <- c("#DC050C", "#FB8072", "#1965B0", "#7BAFDE", "#882E72",
+    "#B17BA6", "#FF7F00", "#FDB462", "#E7298A", "#E78AC3",
+    "#33A02C", "#B2DF8A", "#55A1B1", "#8DD3C7", "#A6761D",
+    "#E6AB02", "#7570B3", "#BEAED4", "#666666", "#999999",
+    "#aa8282", "#d4b7b7", "#8600bf", "#ba5ce3", "#808000",
+    "#aeae5c", "#1e90ff", "#00bfff", "#56ff0d", "#ffff00")
+
+colData(tmp)$mtD2 <- t(tmp@assays@data$exprs["mtD2",])
+
+x <- as.data.frame(colData(tmp)) %>%
+    mutate(pos = ifelse(mtD2 >= 2, "yes", "no"))
+x$adip_cluster <- tmp@metadata$cluster_codes$meta16[x$cluster_id]
+
+#Getting a completed summary of the meta data with counts
+y <- x %>% group_by(adip_cluster, sample_id, age, pos, .drop = F) %>%
+    summarise(n = n()) %>%
+    ungroup() %>%
+    complete(adip_cluster, sample_id, age, pos,
+             fill = list(n = 0))
+y <- na.omit(y)
+y <- y[y$adip_cluster != 21,]
+
+#One more layer of summary
+y <- y %>% group_by(adip_cluster, sample_id, age) %>%
+    mutate(sum = sum(n)) 
+
+#Scaling Values
+y$scale <- y$n/y$sum
+y$scale[is.nan(y$scale)] <- 0
+y <- na.omit(y)
+
+#Isolate only the "yes" cells for Bar Graph
+y <- y[y$pos == "yes",]
+y$age <- factor(y$age, levels = c("5mo", "20mo"))
+    
+
+update_geom_defaults("point", list(alpha=1))
+ggplot(y, aes(x = adip_cluster, y=scale*100)) +
+    geom_bar(stat = "identity") + 
+    geom_point(aes(color = adip_cluster, y = axis*50, size = sum)) + 
+    coord_polar() + 
+    facet_grid(y$age ~ y$sample_id) + 
+    theme_classic() + 
+    guides(color = F) + 
+    #geom_text_repel(aes(label = round(scale, 3)*100), size = 2) +
+    theme(axis.text.x = element_blank(), 
+          plot.margin = unit(c(0,0,0,0), "cm"), 
+          axis.title = element_blank()) + 
+    scale_color_manual(values = pal[1:20]) +
+labs(size = "Number of Cells")
+ggsave("./subclustered/Adipose/MtD2_proportion.pdf", height = 4.5, width=8)
+write.csv(y, "adipose_cluster_mtD2breakdown.csv")
+```
+
