@@ -831,6 +831,26 @@ saveRDS(tmp, "adipose_annotated.rds")
 
 ## MtD2 positivity Plotting
 
+Examining the cut-off dor "mtD2" positivity
+
+```{r}
+colData(tmp) <- colData(tmp)[,-11]
+chs <- c("mtD2", "SSC.H")
+sub1 <- filterSCE(tmp, tmp@colData$condition == "Cre" & assay(tmp["mtD2"], "exprs") >= 0)
+
+sub2 <- filterSCE(tmp, tmp@colData$condition != "Cre")
+sub2 <- filterSCE(sub2, assay(sub2["mtD2"], "exprs") >= 0)
+
+
+pdf("subclustered/Adipose/control_mtD2.pdf", height = 3, width=3)
+plotScatter(sub1, chs, bins = 500)
+dev.off()
+
+pdf("subclustered/Adipose/mitoFat_mtD2.pdf", height = 3, width=3)
+plotScatter(sub2, chs, bins = 500)
+dev.off()
+```
+
 
 
 ```{r}
@@ -888,4 +908,6 @@ labs(size = "Number of Cells")
 ggsave("./subclustered/Adipose/MtD2_proportion.pdf", height = 4.5, width=8)
 write.csv(y, "adipose_cluster_mtD2breakdown.csv")
 ```
+
+
 
