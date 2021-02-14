@@ -7,7 +7,7 @@ author:
 - name: Jonathan R. Brestoff
   email: Brestoff@wustl.edu
   affiliation: Washington University in St. Louis, School of Medicine, St. Louis, MO, USA
-date: "January 15th 2020"
+date: "February 14th 2021"
 output:
   BiocStyle::html_document:
     toc_float: true
@@ -34,7 +34,7 @@ library(ggthemes)
 
 ```{r}
 library(readxl)
-files <- read_xlsx("file.inventory.xlsx")
+files <- read_xlsx("./tables/file.inventory.xlsx")
 ```
 
 
@@ -385,7 +385,7 @@ sce@colData$cluster_id[index] <- x
 Inspecting the expression of markers with the heatmap and tSNE plot overlays, we came up with the following annotations for cell types by cluster ID. 
 
 ```{r}
-annot <- readxl::read_xlsx("cluster.annotations.xlsx")
+annot <- readxl::read_xlsx("./tables/cluster.annotations.xlsx")
 
 
 annot <- annot[,c(1,4)]
@@ -399,7 +399,7 @@ annot$new_cluster <- factor(
 sce <- mergeClusters(sce, k = "meta25", 
     table = annot, id = "merging2")
 
-annot <- readxl::read_xlsx("cluster.annotations.xlsx")[,1:4]
+annot <- readxl::read_xlsx("./tables/cluster.annotations.xlsx")[,1:4]
 merge <- data.frame(sce@metadata$cluster_codes$merging2, sce@metadata$cluster_codes$meta25)
 colnames(merge) <- c("specific", "met25")
 merge$cluster_id <- seq.int(nrow(merge))
@@ -775,7 +775,7 @@ ggsave(paste0("subclustered/", "Adipose/", "tsne_2cp.png"), height = 5.25, width
 ## Adding Annotation for Clusters
 
 ```{r}
-annot <- readxl::read_xlsx("adipose.clusters.xlsx")
+annot <- readxl::read_xlsx("./tables/adipose.clusters.xlsx")
 
 colnames(annot) <- c("original_cluster", "type", "new_cluster")
 annot <- annot[,c(1,3)]
@@ -865,7 +865,7 @@ pal <- c("#DC050C", "#FB8072", "#1965B0", "#7BAFDE", "#882E72",
 colData(tmp)$mtD2 <- t(tmp@assays@data$exprs["mtD2",])
 
 x <- as.data.frame(colData(tmp)) %>%
-    mutate(pos = ifelse(mtD2 >= 2, "yes", "no"))
+    mutate(pos = ifelse(mtD2 >= 1.5, "yes", "no"))
 x$adip_cluster <- tmp@metadata$cluster_codes$meta16[x$cluster_id]
 
 #Getting a completed summary of the meta data with counts
