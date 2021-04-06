@@ -332,6 +332,93 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
 ```
+
+
+## Figure 1 F
+
+First generating the PHATE embedding and slinghsot trajectories
+
+```{r}
+library(slingshot)
+library(phateR)
+
+sub <- tmp[tmp$Major %in% c("Dendritic Cells","Macrophages", "Monocytes"),]
+
+phate <- phate(data, knn=20, t = 50)
+
+sub <- data.frame(sub, phate$embedding)
+
+sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
+sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
+saveRDS(phate, file =  "phate.rds")
+
+sds <- slingshot(sub[,48:50], clusterLabels = sub$cluster.sq, allow.breaks = TRUE, stretch = 0, start.clus = 21)
+saveRDS(sds, file =  "slingshot.rds")
+
+####################################
+#Graph 1: Phate Embedding by cluster
+####################################
+
+pal <- mycolors[unique(sub$cluster.sq)]
+ggplot(data = sub, aes(PHATE1, PHATE2, color = as.factor(cluster.sq))) +
+  geom_point(stroke = 0) +
+    scale_color_manual(values = pal) + 
+    theme_void() +
+    theme(strip.background = element_blank(),
+      strip.text = element_blank()) + 
+    guides(color = F)
+ggsave("Overall_byPhate.png",  bg = "transparent", height = 4, width = 4.25, dpi = 600)
+
+
+pdf("PT1.pdf", height = 4, width = 4.25)
+plot(sds@reducedDim[,1:2], col  = "grey", pch = 16, cex = 0.25)
+lines(sds, lwd = 2, type = 'lineages', col = 'black')
+dev.off()
+
+
+pdf("PT2.pdf", height = 4, width = 4.25)
+plot(reducedDim(sds), col = "grey", pch = 16, cex = 0.5)
+lines(sds, lwd = 2, col = 'black')
+dev.off()
+
+##############################
+#Graph 2: MtD2 level by tissue
+#############################
+ggplot(data = sub, aes(PHATE1, PHATE2, color = mtD2)) +
+  geom_point(stroke = 0, size = 1.5) +
+    facet_grid(tissue~.) + 
+    scale_color_viridis() + 
+    theme_void() +
+    theme(strip.background = element_blank(),
+      strip.text = element_blank()) + 
+    guides(color = F)
+ggsave("Overall_mtD2posValue_byPhate.png", width = 4.25, height = 12, dpi = 600)
+```
+
+## Figure 1G
+
+```{r}
+PT <- slingPseudotime(sds)
+
+sub <- data.frame(sub, PT)
+sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
+
+ggplot(sub, aes(x=curve1, y =mtD2)) + 
+  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
+  geom_smooth(method = "loess", se=FALSE, color = "black") + 
+  facet_grid(.~tissue) + 
+  geom_hline(yintercept = 0, lty = 2) + 
+  scale_color_manual(values = pal) + 
+  theme_void() + guides(color = F) +
+    theme(strip.background = element_blank(),
+      strip.text = element_blank())
+sub<- sub[order(sub$cluster.sq, decreasing = T),]
+
+ggsave("Overall_mtD2curve1_PT.png", height = 2, width = 6, dpi = 600)
+```
+
+
+
 **********
 
 # Figure 2
@@ -400,6 +487,9 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
 ```
+
+
+
 **********************
 #Figure 3
 
@@ -470,102 +560,14 @@ ggsave("MtD2_proportion_set2.pdf", height = 4.5, width=8)
 
 
 
-```{r}
-sub <- tmp[tmp$Major %in% c("Dendritic Cells","Macrophages", "Monocytes"),]
 
-
-library(phateR)
-phate <- phate(data, knn=6, t = 100)
-
-sub <- data.frame(sub, phate$embedding)
-
-sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
-sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
-
-
-plot <- ggplot(data = sub, aes(PHATE1, PHATE2)) +
-  geom_point(stroke = 0, size = 0.5, color = "grey") +
-    facet_grid(.~tissue)
-
-plot + stat_density_2d(subset(sub, mtD2_pos == "Yes"), mapping = aes(PHATE1, PHATE2, fill = ..level..), geom = "polygon")  + 
-    scale_fill_viridis() + 
-    theme_void() + 
-    guides(fill = F) + 
-    theme(strip.background = element_blank(),
-      strip.text = element_blank())
-ggsave("Overall_mtD2posDensity_byPhate.png", height = 4, width = 12.75, dpi = 600)
-
-ggplot(data = sub, aes(PHATE1, PHATE2, color = mtD2)) +
-  geom_point(stroke = 0, size = 1.5) +
-    facet_grid(tissue~.) + 
-    scale_color_viridis() + 
-    theme_void() +
-    theme(strip.background = element_blank(),
-      strip.text = element_blank()) + 
-    guides(color = F)
-ggsave("Overall_mtD2posValue_byPhate.png", width = 4.25, height = 12, dpi = 600)
-
-pal <- mycolors[unique(sub$cluster.sq)]
-ggplot(data = sub, aes(PHATE1, PHATE2, color = as.factor(cluster.sq))) +
-  geom_point(stroke = 0) +
-    scale_color_manual(values = pal) + 
-    theme_void() +
-    theme(strip.background = element_blank(),
-      strip.text = element_blank()) + 
-    guides(color = F)
-ggsave("Overall_byPhate.png",  bg = "transparent", height = 4, width = 4.25, dpi = 600)
-
-
-
-
-```
 
 ```{r}
-
-library(slingshot)
-
-sds <- slingshot(sub[,48:50], clusterLabels = sub$cluster.sq, allow.breaks = TRUE, stretch = 0, start.clus = 21)
-saveRDS(sds, file =  "slingshot.rds")
 sds <- readRDS("slingshot.rds")
 
-pdf("PT1.pdf", height = 4, width = 4.25)
-plot(sds@reducedDim[,1:2], col  = "grey", pch = 16, cex = 0.25)
-lines(sds, lwd = 2, type = 'lineages', col = 'black')
-dev.off()
 
 
-pdf("PT2.pdf", height = 4, width = 4.25)
-plot(reducedDim(sds), col = "grey", pch = 16, cex = 0.5)
-lines(sds, lwd = 2, col = 'black')
-dev.off()
 
-PT <- slingPseudotime(sds)
-
-sub <- data.frame(sub, PT)
-sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
-
-pal <- mycolors[unique(sub$cluster.sq)]
-ggplot(data = sub, aes(PHATE1, PHATE2, color = as.factor(cluster.sq))) +
-  geom_point(stroke = 0) +
-    facet_grid(.~tissue) +
-    scale_color_manual(values = pal) + 
-    theme_void() +
-    theme(strip.background = element_blank(),
-      strip.text = element_blank()) + 
-    guides(color = F)
-
-ggplot(sub, aes(x=curve1, y =mtD2)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  facet_grid(.~tissue) + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  scale_color_manual(values = pal) + 
-  theme_void() + guides(color = F) +
-    theme(strip.background = element_blank(),
-      strip.text = element_blank())
-sub<- sub[order(sub$cluster.sq, decreasing = T),]
-
-ggsave("Overall_mtD2curve1_PT.png", height = 2, width = 6, dpi = 600)
 
 
 
@@ -690,7 +692,5 @@ ggsave("Overall_mtD2curve2_PT.png", height = 2, width = 6, dpi = 600)
 
 
 
-```{r}
-phate <- readRDS("phate.rds")
-```
+
 
