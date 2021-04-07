@@ -14,6 +14,8 @@ vignette: >
   %\usepackage[UTF-8]{inputenc}
 ---
 
+Below is the all of the steps nessecary for processing the batch-corrected files to figure outputs. I have included the initial steps and batch-corrected FCS files for greater transparency. However, processed data outputs are also in the /data folder which will allow for easier recreation of figures and adding your own analyses.
+
 # Prepping analysis
 
 ## Load Libraries
@@ -31,7 +33,7 @@ library(ggthemes)
 
 ```{r}
 library(readxl)
-files <- read_xlsx("file.inventory_combined2.xlsx")
+files <- read_xlsx("./tables/file.inventory_combined2.xlsx")
 
  
 ############################
@@ -334,7 +336,7 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
 ```
 
 
-## Figure 1 F
+## Figure 1F
 
 First generating the PHATE embedding and slinghsot trajectories
 
@@ -488,6 +490,58 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
           axis.title = element_blank()) 
 ```
 
+## Figure 2E
+
+```{r}
+set1 <- sub[sub$Experiment == "Set1", ]
+set1 <- set1[order(set1$cluster.sq, decreasing = T),]
+
+set1$age <- factor(set1$age, levels = c("5mo", "20mo"))
+set1$tissue <- factor(set1$tissue, levels = c("eWAT", "iWAT", "BAT"))
+
+ggplot(set1, aes(x=curve1, y =mtD2)) + 
+  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
+  geom_smooth(method = "loess", se=FALSE, color = "black") + 
+  facet_grid(age~tissue) + 
+  geom_hline(yintercept = 0, lty = 2) + 
+  scale_color_manual(values = pal) + 
+  theme_classic() + guides(color = F)
+
+ggsave("Set1_mtD2curve1_PT.pdf", height = 4, width = 6)
+
+ggplot(set1, aes(x=curve1, y =Ly6C)) + 
+  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
+  geom_smooth(method = "loess", se=FALSE, color = "black") + 
+  geom_hline(yintercept = 0, lty = 2) + 
+  scale_color_manual(values = pal) + 
+  theme_classic() + guides(color = F)
+ggsave("Set1_Ly6C_c1_PT.pdf", height = 2, width = 2)
+
+ggplot(set1, aes(x=curve1, y =F4.80)) + 
+  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
+  geom_smooth(method = "loess", se=FALSE, color = "black") + 
+  geom_hline(yintercept = 0, lty = 2) + 
+  scale_color_manual(values = pal) + 
+  theme_classic() + guides(color = F)
+ggsave("Set1_F4.80_c1_PT.pdf", height = 2, width = 2)
+
+ggplot(set1, aes(x=curve1, y =MHC.II)) + 
+  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
+  geom_smooth(method = "loess", se=FALSE, color = "black") + 
+  geom_hline(yintercept = 0, lty = 2) + 
+  scale_color_manual(values = pal) + 
+  theme_classic() + guides(color = F)
+ggsave("Set1_MHC.II_c1_PT.pdf", height = 2, width = 2)
+
+ggplot(set1, aes(x=curve2, y =mtD2)) + 
+  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
+  geom_smooth(method = "loess", se=FALSE, color = "black") + 
+  geom_hline(yintercept = 0, lty = 2) + 
+  facet_grid(age~tissue) + 
+  scale_color_manual(values = pal) + 
+  theme_classic() + guides(color = F)
+ggsave("Set1_mtD2curve2_PT.pdf", height = 4, width = 6)
+```
 
 
 **********************
@@ -554,98 +608,9 @@ ggsave("MtD2_proportion_set2.pdf", height = 4.5, width=8)
 ```
 
 
-
-
-
-
-
-
-
+## Figure 3E
 
 ```{r}
-sds <- readRDS("slingshot.rds")
-
-
-
-
-
-
-
-set1 <- sub[sub$Experiment == "Set1", ]
-set1 <- set1[order(set1$cluster.sq, decreasing = T),]
-
-pal <- mycolors[unique(sub$cluster.sq)]
-ggplot(data = set1, aes(PHATE1, PHATE2, color = as.factor(cluster.sq))) +
-  geom_point(stroke = 0) +
-    scale_color_manual(values = pal) + 
-    theme_void() +
-    theme(strip.background = element_blank(),
-      strip.text = element_blank()) + 
-    guides(color = F)
-
-ggplot(data = set1, aes(PHATE1, PHATE2, color = curve1)) +
-  geom_point(stroke = 0) +
-    scale_color_viridis() + 
-    theme_void() +
-    theme(strip.background = element_blank(),
-      strip.text = element_blank()) + 
-    guides(color = F)
-
-ggplot(data = set1, aes(PHATE1, PHATE2, color = curve2)) +
-  geom_point(stroke = 0) +
-    scale_color_viridis() + 
-    theme_void() +
-    theme(strip.background = element_blank(),
-      strip.text = element_blank()) + 
-    guides(color = F)
-
-set1$age <- factor(set1$age, levels = c("5mo", "20mo"))
-set1$tissue <- factor(set1$tissue, levels = c("eWAT", "iWAT", "BAT"))
-
-ggplot(set1, aes(x=curve1, y =mtD2)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  facet_grid(age~tissue) + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  scale_color_manual(values = pal) + 
-  theme_classic() + guides(color = F)
-
-ggsave("Set1_mtD2curve1_PT.pdf", height = 4, width = 6)
-
-ggplot(set1, aes(x=curve1, y =Ly6C)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  scale_color_manual(values = pal) + 
-  theme_classic() + guides(color = F)
-ggsave("Set1_Ly6C_c1_PT.pdf", height = 2, width = 2)
-
-ggplot(set1, aes(x=curve1, y =F4.80)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  scale_color_manual(values = pal) + 
-  theme_classic() + guides(color = F)
-ggsave("Set1_F4.80_c1_PT.pdf", height = 2, width = 2)
-
-ggplot(set1, aes(x=curve1, y =MHC.II)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  scale_color_manual(values = pal) + 
-  theme_classic() + guides(color = F)
-ggsave("Set1_MHC.II_c1_PT.pdf", height = 2, width = 2)
-
-ggplot(set1, aes(x=curve2, y =mtD2)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  facet_grid(age~tissue) + 
-  scale_color_manual(values = pal) + 
-  theme_classic() + guides(color = F)
-
-ggsave("Set1_mtD2curve2_PT.pdf", height = 4, width = 6)
-
 set2 <- sub[sub$Experiment == "Set2", ]
 set2 <- set2[order(set2$cluster.sq, decreasing = T),]
 
@@ -660,34 +625,16 @@ ggplot(set2, aes(x=curve1, y =mtD2)) +
   scale_color_manual(values = pal) + 
   theme_classic() + guides(color = F)
 ggsave("Set2_mtD2curve1_PT.pdf", height = 6, width = 6)
-
-ggplot(set2, aes(x=curve2, y =mtD2)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  facet_grid(chow~tissue) + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  scale_color_manual(values = pal) + 
-   guides(color = F) + 
-    theme_void() +
-    theme(strip.background = element_blank(),
-      strip.text = element_blank()) 
-
-ggsave("Set2_mtD2curve2_PT.png", height = 6, width = 6, dpi = 600)
-
-
-ggplot(sub, aes(x=curve2, y =mtD2)) + 
-    geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-    geom_smooth(method = "loess", se=FALSE, color = "black") + 
-    geom_hline(yintercept = 0, lty = 2) + 
-    facet_grid(.~tissue) + 
-    scale_color_manual(values = pal) + 
-    guides(color = F) + 
-    theme_void() +
-    theme(strip.background = element_blank(),
-      strip.text = element_blank())  
-
-ggsave("Overall_mtD2curve2_PT.png", height = 2, width = 6, dpi = 600)
 ```
+
+
+
+
+
+
+
+
+
 
 
 
