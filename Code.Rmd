@@ -27,14 +27,21 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(ggthemes)
+library(readxl)
+library(slingshot)
+library(phateR)
 ```
+
+
+The following is the initital data processing steps taken
+1) Loading the FCS files as a flowset
+2) Transforming the markers using estimateLogicle
+3) Creating a singlecell object
 
 ## Load Data Inventory
 
-```{r}
-library(readxl)
+```{r, eval=FALSE}
 files <- read_xlsx("./tables/file.inventory_combined2.xlsx")
-
  
 ############################
 #Version 1: Precompensation
@@ -74,7 +81,7 @@ The first step is filtering the single-cell object by
 2) Selecting single-cells
 3) Rmoving cells with too high DNA
 
-```{r}
+```{r, eval = FALSE}
 sce <- readRDS("sce_logicale.rds")
 
 #Step 1: Removing Debris
@@ -125,11 +132,9 @@ saveRDS(sce, file = "sce_flowset_filtered_logical.rds")
 
 We will perform dimensional reduction on the single-cell object (both TSNE and UMAP) and then use the R package bluster to cluster the cells.
 
-```{r}
-sce <- runDR(sce, "TSNE", cells = 5e3, features = "type")
-sce <- runDR(sce, "UMAP", cells = 5e3, features = "type")
-
-
+```{r, eval=FALSE}
+sce <- runDR(sce, "TSNE", cells = 5e3, features = "type") #Sampling 5000 cells for generating TSNE
+sce <- runDR(sce, "UMAP", cells = 5e3, features = "type") #Sampling 5000 cells for generating UMAP
 
 library(bluster)
 
@@ -143,38 +148,39 @@ kgraph.clusters <- clusterRows(na.omit(sce@int_colData@listData$reducedDims$UMAP
 
 tmp <- data.frame(na.omit(sce@int_colData@listData$reducedDims$UMAP), cluster.sq = kgraph.clusters)
 
-ggplot(tmp, aes(x=X1, y=X2, color = as.factor(cluster.sq))) +
-  geom_point()
 ```
 
-#G enerating 
+# Generating Final Object
 
-```{R}
-library(RColorBrewer)
-mycolors <- colorRampPalette(brewer.pal(8, "Set1"))(length(unique(tmp$cluster.sq)))
-
-
+```{R, eval = FALSE}
 colData <- na.omit(data.frame(colData(sce), sce@int_colData@listData$reducedDims$UMAP, t(sce@assays@data$exprs)))
 tmp <- data.frame(cluster.sq = kgraph.clusters, colData)
 tmp$chow <- tmp$Diet
-tmp$chow <- ifelse(tmp$chow == "chow", "Chow", as.character(tmp$chow))
-saveRDS(tmp, file = "integratedDF.rds")
-tmp <- readRDS("integratedDF.rds")
+tmp$chow <- ifelse(tmp$chow == "chow", "Chow", as.character(tmp$chow)) #Chow vs chow was an issue
+
 ```
 
-# Manual Editing of Clusters
+## Manual Editing of Clusters
 
-```{r}
+```{r, eval = F}
 tmp <- tmp[tmp$cluster.sq != 20,] #doublets
 tmp <- tmp[tmp$cluster.sq != 8,] #doublets
-tmp$cluster.sq <- ifelse(tmp$cluster.sq == 23, 8, tmp$cluster.sq)
+tmp$cluster.sq <- ifelse(tmp$cluster.sq == 23, 8, tmp$cluster.sq) #Replacing removed clusters
 tmp$cluster.sq <- ifelse(tmp$cluster.sq == 22, 20, tmp$cluster.sq)
+saveRDS(tmp, file = "./data/integratedDF.rds")
 ```
 
+*******************************
 #Figure 1
 
 ## Figure 1B
 ```{r}
+dir.create("./outputs")
+tmp <- readRDS("./data/processed/integratedDF.rds")
+library(RColorBrewer)
+mycolors <- colorRampPalette(brewer.pal(8, "Set1"))(length(unique(tmp$cluster.sq)))
+
+###Generating positions for the geom_text addition of cluster numbers
 centers = tmp %>% group_by(cluster.sq) %>% select(X1, 
     X2) %>% summarize_all(mean)
 
@@ -184,17 +190,16 @@ ggplot(tmp, aes(x=X1, y=X2, color = as.factor(cluster.sq))) +
   scale_color_manual(values = mycolors) + 
   theme_void() +
     guides(color = F)
+ggsave("./outputs/cluster.png", height = 4, width = 5, dpi = 600)
 
-ggsave("cluster.png", height = 4, width = 5, dpi = 600)
+annot <- readxl::read_xlsx("./tables/annot.xlsx")[,1:2]
+tmp <- merge(tmp, annot, by.x = "cluster.sq", by.y = "Cluster")
 
 
 ggplot(tmp, aes(x=X1, y = X2)) + 
     geom_point(aes(color = as.factor(Major)), stroke = 0, size = 0.75) + 
     scale_color_manual(values = tableau_color_pal()(10)) + 
-    guides(color = F) + 
-    xlim(round(min(c(sub$X1))), round(max(c(sub$X1))+2)) + 
-    ylim(round(min(c(sub$X2))), round(max(c(sub$X2))+2)) + 
-    theme_void() + 
+    guides(color = F) +
     theme(
       strip.background = element_blank(),
       strip.text = element_blank(), 
@@ -204,25 +209,20 @@ ggplot(tmp, aes(x=X1, y = X2)) +
       panel.spacing.x=unit(0.1, "lines"),
       panel.spacing.y=unit(0.1, "lines"), 
       panel.background = element_blank()) 
-ggsave("OVERALL_UMAP_celltype.png", height = 4, width = 4.5, dpi = 600)
-
+ggsave("./outputs/OVERALL_UMAP_celltype.png", height = 4, width = 4.5, dpi = 600)
 ```
 
 
 ## Figure 1C
 ```{r}
-annot <- readxl::read_xlsx("annot.xlsx")[,1:2]
 
-tmp <- merge(tmp, annot, by.x = "cluster.sq", by.y = "Cluster")
-
-library(ggthemes)
 ggplot(tmp, aes(x = 1, fill = Major)) +
     geom_bar(position = "fill")  + 
     coord_flip() + 
     facet_grid(tissue~.) + 
     theme_classic() + 
     scale_fill_manual(values = tableau_color_pal()(10))
-ggsave("proportion_chart_Overall.pdf")
+ggsave("./outputs/proportion_chart_Overall.pdf")
 ```
 
 ## Figure 1D
@@ -231,14 +231,14 @@ tmp$mtD2_pos <- ifelse(tmp$mtD2 >= 1.5, "Yes", "No")
 tmp$tissue <- factor(tmp$tissue, levels = c("eWAT", "iWAT", "BAT"))
 plot <- ggplot(data = tmp, aes(x=X1, y=X2)) +
   geom_point(stroke = 0, size = 0.5, color = "grey") 
-plot + stat_density_2d(subset(tmp, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..density..), geom = "polygon", h =2)  + 
+plot + stat_density_2d(subset(tmp, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..level..), geom = "polygon", h =2)  + 
     scale_fill_viridis() + 
     guides(fill = F) + 
     theme_void() + 
     facet_grid(.~tissue, scales = "free") + 
     theme(strip.background = element_blank(),
       strip.text = element_blank())
-ggsave("Overall_mtD2_positive.png", height = 4, width = 12.74, dpi = 600)
+ggsave("./outputs/Overall_mtD2_positive.png", height = 4, width = 12.74, dpi = 600)
 ```
 
 ## Figure 1D
@@ -246,17 +246,16 @@ ggsave("Overall_mtD2_positive.png", height = 4, width = 12.74, dpi = 600)
 Cre-negative Clock Diagram
 ```{r}
 sub <- tmp[tmp$Experiment != "Set2",]
-sub <- sub[sub$condition == "Cre",]
+sub <- sub[sub$condition == "Cre",] #Only the Cre-negative samples
 sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
+
+#Need to use the tidyr complete to be able to properly sum things
 y <- sub %>% group_by(cluster.sq, tissue, age, mtD2_pos, .drop = F) %>%
     summarise(n = n()) %>%
     ungroup() %>%
     complete(cluster.sq, tissue, age, mtD2_pos,
              fill = list(n = 0))
 y <- na.omit(y)
-
-
-#y <- y[y$adip_cluster != 21,]
 
 #One more layer of summary
 y <- y %>% group_by(cluster.sq, tissue, age) %>%
@@ -286,13 +285,13 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
 labs(size = "Number of Cells")
-ggsave("MtD2_proportion_set1_Crenegative.pdf", height = 4.5, width=8)
+ggsave("./outputs/MtD2_proportion_set1_Crenegative.pdf", height = 4.5, width=8)
 ```
 
 MitoFat Clock Diagram
 ```{r}
 sub <- tmp[tmp$Experiment == "Set1",]
-sub <- sub[sub$condition != "Cre",]
+sub <- sub[sub$condition != "Cre",] #Only the MitoFat Samples
 sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
 sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
 
@@ -302,9 +301,6 @@ y <- sub %>% group_by(cluster.sq, tissue, age, mtD2_pos, .drop = F) %>%
     complete(cluster.sq, tissue, age, mtD2_pos,
              fill = list(n = 0))
 y <- na.omit(y)
-
-
-#y <- y[y$adip_cluster != 21,]
 
 #One more layer of summary
 y <- y %>% group_by(cluster.sq, tissue, age) %>%
@@ -333,35 +329,41 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
     theme(axis.text.x = element_blank(), 
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
+ggsave("./outputs/MtD2_proportion_set1.pdf", height = 3, width=8)
 ```
 
 
 ## Figure 1F
 
-First generating the PHATE embedding and slinghsot trajectories
+First generating the PHATE embedding and slinghsot trajectories. Both of these calculations are time consuming, so the following will not be evaluated, but in place for the sake of transparency. Both of the resulting objects are saved in the "./data" directory and are loaded in the subsequent code block.
 
-```{r}
-library(slingshot)
-library(phateR)
-
+```{r eval=FALSE}
 sub <- tmp[tmp$Major %in% c("Dendritic Cells","Macrophages", "Monocytes"),]
 
 phate <- phate(data, knn=20, t = 50)
 
-sub <- data.frame(sub, phate$embedding)
+
 
 sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
 sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
-saveRDS(phate, file =  "phate.rds")
+saveRDS(phate, file =  "./data/processed/phate.rds")
 
 sds <- slingshot(sub[,48:50], clusterLabels = sub$cluster.sq, allow.breaks = TRUE, stretch = 0, start.clus = 21)
-saveRDS(sds, file =  "slingshot.rds")
+saveRDS(sds, file =  "./data/processed/slingshot.rds")
+```
 
+
+```{r}
+sds <- readRDS("./data/processed/slingshot.rds")
+phate <- readRDS("./data/processed/phate.rds")
+
+sub <- tmp[tmp$Major %in% c("Dendritic Cells","Macrophages", "Monocytes"),]
+sub <- data.frame(sub, phate$embedding)
 ####################################
 #Graph 1: Phate Embedding by cluster
 ####################################
 
-pal <- mycolors[unique(sub$cluster.sq)]
+pal <- mycolors[unique(sub$cluster.sq)] #selecting just the myeloid clusters
 ggplot(data = sub, aes(PHATE1, PHATE2, color = as.factor(cluster.sq))) +
   geom_point(stroke = 0) +
     scale_color_manual(values = pal) + 
@@ -369,16 +371,16 @@ ggplot(data = sub, aes(PHATE1, PHATE2, color = as.factor(cluster.sq))) +
     theme(strip.background = element_blank(),
       strip.text = element_blank()) + 
     guides(color = F)
-ggsave("Overall_byPhate.png",  bg = "transparent", height = 4, width = 4.25, dpi = 600)
+ggsave("./outputs/Overall_byPhate.png",  bg = "transparent", height = 4, width = 4.25, dpi = 600)
 
 
-pdf("PT1.pdf", height = 4, width = 4.25)
+pdf("./outputs/PT1.pdf", height = 4, width = 4.25)
 plot(sds@reducedDim[,1:2], col  = "grey", pch = 16, cex = 0.25)
 lines(sds, lwd = 2, type = 'lineages', col = 'black')
 dev.off()
 
 
-pdf("PT2.pdf", height = 4, width = 4.25)
+pdf("./outputs/PT2.pdf", height = 4, width = 4.25)
 plot(reducedDim(sds), col = "grey", pch = 16, cex = 0.5)
 lines(sds, lwd = 2, col = 'black')
 dev.off()
@@ -394,7 +396,7 @@ ggplot(data = sub, aes(PHATE1, PHATE2, color = mtD2)) +
     theme(strip.background = element_blank(),
       strip.text = element_blank()) + 
     guides(color = F)
-ggsave("Overall_mtD2posValue_byPhate.png", width = 4.25, height = 12, dpi = 600)
+ggsave("./outputs/Overall_mtD2posValue_byPhate.png", width = 4.25, height = 12, dpi = 600)
 ```
 
 ## Figure 1G
@@ -404,6 +406,7 @@ PT <- slingPseudotime(sds)
 
 sub <- data.frame(sub, PT)
 sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
+sub<- sub[order(sub$cluster.sq, decreasing = T),] #Ordering the clusters for graphing purposes
 
 ggplot(sub, aes(x=curve1, y =mtD2)) + 
   geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
@@ -414,11 +417,10 @@ ggplot(sub, aes(x=curve1, y =mtD2)) +
   theme_void() + guides(color = F) +
     theme(strip.background = element_blank(),
       strip.text = element_blank())
-sub<- sub[order(sub$cluster.sq, decreasing = T),]
 
-ggsave("Overall_mtD2curve1_PT.png", height = 2, width = 6, dpi = 600)
+
+ggsave("./outputs/Overall_mtD2curve1_PT.png", height = 2, width = 6, dpi = 600)
 ```
-
 
 
 **********
@@ -428,38 +430,31 @@ ggsave("Overall_mtD2curve1_PT.png", height = 2, width = 6, dpi = 600)
 ## Figure 2C
 
 ```{r}
-
-sub <- tmp[tmp$Experiment == "Set1",]
+sub <- tmp[tmp$Experiment == "Set1",] #Cohort #1
 sub <- sub[sub$condition != "Cre",]
 sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
 sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
 
 
-ggplot(sub, aes(x = chow, fill = Major)) +
+ggplot(sub, aes(x = age, fill = Major)) +
     geom_bar(position = "fill")  + 
     coord_flip() + 
     facet_grid(tissue~.) + 
     theme_classic() + 
     scale_fill_manual(values = tableau_color_pal()(10))
-ggsave("proportion_chart_set1.pdf")
-
-
-
-sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
+ggsave("./outputs/proportion_chart_set1.pdf")
 
 ```
 
 ## Figure 2D
 ```{r}
+
 y <- sub %>% group_by(cluster.sq, tissue, age, mtD2_pos, .drop = F) %>%
     summarise(n = n()) %>%
     ungroup() %>%
     complete(cluster.sq, tissue, age, mtD2_pos,
              fill = list(n = 0))
 y <- na.omit(y)
-
-
-#y <- y[y$adip_cluster != 21,]
 
 #One more layer of summary
 y <- y %>% group_by(cluster.sq, tissue, age) %>%
@@ -492,14 +487,23 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
 
 ## Figure 2E
 
+Please see figure 1G for more details on the phate and sds construction
 ```{r}
-set1 <- sub[sub$Experiment == "Set1", ]
-set1 <- set1[order(set1$cluster.sq, decreasing = T),]
+sds <- readRDS("./data/processed/slingshot.rds")
+phate <- readRDS("./data/processed/phate.rds")
 
-set1$age <- factor(set1$age, levels = c("5mo", "20mo"))
-set1$tissue <- factor(set1$tissue, levels = c("eWAT", "iWAT", "BAT"))
+sub<- tmp[tmp$Major %in% c("Dendritic Cells","Macrophages", "Monocytes"),]
+PT <- slingPseudotime(sds)
+sub <- data.frame(sub, PT)
+sub <- data.frame(sub, phate$embedding)
+sub <- sub[sub$Experiment == "Set1",] #Cohort #1
+sub <- sub[sub$condition != "Cre",]
+sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
+sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
 
-ggplot(set1, aes(x=curve1, y =mtD2)) + 
+sub <- sub[order(sub$cluster.sq, decreasing = T),]
+
+ggplot(sub, aes(x=curve1, y =mtD2)) + 
   geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
   geom_smooth(method = "loess", se=FALSE, color = "black") + 
   facet_grid(age~tissue) + 
@@ -507,40 +511,40 @@ ggplot(set1, aes(x=curve1, y =mtD2)) +
   scale_color_manual(values = pal) + 
   theme_classic() + guides(color = F)
 
-ggsave("Set1_mtD2curve1_PT.pdf", height = 4, width = 6)
+ggsave("./outputs/Set1_mtD2curve1_PT.pdf", height = 4, width = 6)
 
-ggplot(set1, aes(x=curve1, y =Ly6C)) + 
+ggplot(sub, aes(x=curve1, y =Ly6C)) + 
   geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
   geom_smooth(method = "loess", se=FALSE, color = "black") + 
   geom_hline(yintercept = 0, lty = 2) + 
   scale_color_manual(values = pal) + 
   theme_classic() + guides(color = F)
-ggsave("Set1_Ly6C_c1_PT.pdf", height = 2, width = 2)
+ggsave("./outputs/Set1_Ly6C_c1_PT.pdf", height = 2, width = 2)
 
-ggplot(set1, aes(x=curve1, y =F4.80)) + 
+ggplot(sub, aes(x=curve1, y =F4.80)) + 
   geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
   geom_smooth(method = "loess", se=FALSE, color = "black") + 
   geom_hline(yintercept = 0, lty = 2) + 
   scale_color_manual(values = pal) + 
   theme_classic() + guides(color = F)
-ggsave("Set1_F4.80_c1_PT.pdf", height = 2, width = 2)
+ggsave("./outputs/Set1_F4.80_c1_PT.pdf", height = 2, width = 2)
 
-ggplot(set1, aes(x=curve1, y =MHC.II)) + 
+ggplot(sub, aes(x=curve1, y =MHC.II)) + 
   geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
   geom_smooth(method = "loess", se=FALSE, color = "black") + 
   geom_hline(yintercept = 0, lty = 2) + 
   scale_color_manual(values = pal) + 
   theme_classic() + guides(color = F)
-ggsave("Set1_MHC.II_c1_PT.pdf", height = 2, width = 2)
+ggsave("./outputs/Set1_MHC.II_c1_PT.pdf", height = 2, width = 2)
 
-ggplot(set1, aes(x=curve2, y =mtD2)) + 
+ggplot(sub, aes(x=curve2, y =mtD2)) + 
   geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
   geom_smooth(method = "loess", se=FALSE, color = "black") + 
   geom_hline(yintercept = 0, lty = 2) + 
   facet_grid(age~tissue) + 
   scale_color_manual(values = pal) + 
   theme_classic() + guides(color = F)
-ggsave("Set1_mtD2curve2_PT.pdf", height = 4, width = 6)
+ggsave("./outputs/Set1_mtD2curve2_PT.pdf", height = 4, width = 6)
 ```
 
 
@@ -549,7 +553,6 @@ ggsave("Set1_mtD2curve2_PT.pdf", height = 4, width = 6)
 
 ## Figure 3C
 ```{r}
-
 sub <- tmp[tmp$Experiment == "Set2",]
 sub <- sub[sub$condition != "Cre",]
 
@@ -559,7 +562,7 @@ ggplot(sub, aes(x = chow, fill = Major)) +
     facet_grid(tissue~.) + 
     theme_classic() + 
     scale_fill_manual(values = tableau_color_pal()(10))
-ggsave("proportion_chart_set2.pdf")
+ggsave("./outputs/proportion_chart_set2.pdf")
 ```
 
 ## Figure 3D
@@ -604,20 +607,26 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
 labs(size = "Number of Cells")
-ggsave("MtD2_proportion_set2.pdf", height = 4.5, width=8)
+ggsave("./outputs/MtD2_proportion_set2.pdf", height = 4.5, width=8)
 ```
 
 
 ## Figure 3E
 
 ```{r}
-set2 <- sub[sub$Experiment == "Set2", ]
-set2 <- set2[order(set2$cluster.sq, decreasing = T),]
+sds <- readRDS("./data/processed/slingshot.rds")
+phate <- readRDS("./data/processed/phate.rds")
 
+sub<- tmp[tmp$Major %in% c("Dendritic Cells","Macrophages", "Monocytes"),]
+PT <- slingPseudotime(sds)
+sub <- data.frame(sub, PT)
+sub <- data.frame(sub, phate$embedding)
+sub <- sub[sub$Experiment != "Set1",] #Cohort #2
+sub <- sub[sub$condition != "Cre",]
+sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
+sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
 
-set2$tissue <- factor(set2$tissue, levels = c("eWAT", "iWAT", "BAT"))
-
-ggplot(set2, aes(x=curve1, y =mtD2)) + 
+ggplot(sub, aes(x=curve1, y =mtD2)) + 
   geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
   geom_smooth(method = "loess", se=FALSE, color = "black") + 
   facet_grid(tissue~chow) + 
