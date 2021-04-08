@@ -14,7 +14,7 @@ vignette: >
   %\usepackage[UTF-8]{inputenc}
 ---
 
-Below is the all of the steps nessecary for processing the batch-corrected files to figure outputs. I have included the initial steps and batch-corrected FCS files for greater transparency. However, processed data outputs are also in the /data folder which will allow for easier recreation of figures and adding your own analyses.
+Below is the all of the steps necessary for processing the batch-corrected files to figure outputs. I have included the initial steps and batch-corrected FCS files for greater transparency. However, processed data outputs are also in the /data folder which will allow for easier recreation of figures and adding your own analyses. Batch-corrected .fcs files are available via the zenodo link in the github repo.
 
 # Prepping analysis
 
@@ -30,10 +30,11 @@ library(ggthemes)
 library(readxl)
 library(slingshot)
 library(phateR)
+library(RColorBrewer)
 ```
 
 
-The following is the initital data processing steps taken
+The following is the initial data processing steps taken
 1) Loading the FCS files as a flowset
 2) Transforming the markers using estimateLogicle
 3) Creating a singlecell object
@@ -79,7 +80,7 @@ saveRDS(sce, file = "sce_logicale.rds")
 The first step is filtering the single-cell object by 
 1) FSC/SSC (removing debris)
 2) Selecting single-cells
-3) Rmoving cells with too high DNA
+3) Removing cells with too high DNA
 
 ```{r, eval = FALSE}
 sce <- readRDS("sce_logicale.rds")
@@ -173,12 +174,15 @@ saveRDS(tmp, file = "./data/integratedDF.rds")
 *******************************
 #Figure 1
 
+Figure 1 is a basic survey of the combined data, including the defining cell types, looking at distribution of mtD2 and introducing the phate analyses and clockface diagrams. 
+
 ## Figure 1B
 ```{r}
 dir.create("./outputs")
 tmp <- readRDS("./data/processed/integratedDF.rds")
-library(RColorBrewer)
 mycolors <- colorRampPalette(brewer.pal(8, "Set1"))(length(unique(tmp$cluster.sq)))
+
+#Embedded positions of the UMAP are X1 (UMAP1) and X2 (UMAP2)
 
 ###Generating positions for the geom_text addition of cluster numbers
 centers = tmp %>% group_by(cluster.sq) %>% select(X1, 
@@ -195,6 +199,9 @@ ggsave("./outputs/cluster.png", height = 4, width = 5, dpi = 600)
 annot <- readxl::read_xlsx("./tables/annot.xlsx")[,1:2]
 tmp <- merge(tmp, annot, by.x = "cluster.sq", by.y = "Cluster")
 
+###################
+#Mini Celltype UMAP
+####################
 
 ggplot(tmp, aes(x=X1, y = X2)) + 
     geom_point(aes(color = as.factor(Major)), stroke = 0, size = 0.75) + 
@@ -215,7 +222,6 @@ ggsave("./outputs/OVERALL_UMAP_celltype.png", height = 4, width = 4.5, dpi = 600
 
 ## Figure 1C
 ```{r}
-
 ggplot(tmp, aes(x = 1, fill = Major)) +
     geom_bar(position = "fill")  + 
     coord_flip() + 
@@ -241,7 +247,9 @@ plot + stat_density_2d(subset(tmp, mtD2_pos == "Yes"), mapping = aes(x = X1, y =
 ggsave("./outputs/Overall_mtD2_positive.png", height = 4, width = 12.74, dpi = 600)
 ```
 
-## Figure 1D
+## Figure 1E
+
+For Figure 1E, we are generating the clock face diagrams for both Cre-negative and MitoFat mice for both young and aged mice, but the figure only utilizes the young mice. 
 
 Cre-negative Clock Diagram
 ```{r}
@@ -280,7 +288,6 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
     theme_classic() + 
     guides(color = F) + 
     scale_color_manual(values = mycolors) + 
-    #geom_text_repel(aes(label = round(scale, 3)*100), size = 2) +
     theme(axis.text.x = element_blank(), 
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
@@ -325,7 +332,6 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
     theme_classic() + 
     guides(color = F) + 
     scale_color_manual(values = mycolors) + 
-    #geom_text_repel(aes(label = round(scale, 3)*100), size = 2) +
     theme(axis.text.x = element_blank(), 
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
@@ -335,18 +341,18 @@ ggsave("./outputs/MtD2_proportion_set1.pdf", height = 3, width=8)
 
 ## Figure 1F
 
-First generating the PHATE embedding and slinghsot trajectories. Both of these calculations are time consuming, so the following will not be evaluated, but in place for the sake of transparency. Both of the resulting objects are saved in the "./data" directory and are loaded in the subsequent code block.
+First generating the PHATE embedding and slingshot trajectories. Both of these calculations are time consuming, so the following will not be evaluated, but in place for the sake of transparency. Both of the resulting objects are saved in the "./data" directory and are loaded in the subsequent code block. Also note that the slingshot command is generating curves for 3-dimensions of the phate embedding. 
 
 ```{r eval=FALSE}
 sub <- tmp[tmp$Major %in% c("Dendritic Cells","Macrophages", "Monocytes"),]
 
 phate <- phate(data, knn=20, t = 50)
 
-
-
 sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
 sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
 saveRDS(phate, file =  "./data/processed/phate.rds")
+
+
 
 sds <- slingshot(sub[,48:50], clusterLabels = sub$cluster.sq, allow.breaks = TRUE, stretch = 0, start.clus = 21)
 saveRDS(sds, file =  "./data/processed/slingshot.rds")
@@ -401,6 +407,8 @@ ggsave("./outputs/Overall_mtD2posValue_byPhate.png", width = 4.25, height = 12, 
 
 ## Figure 1G
 
+Looking at mtD2 for the first trajectory over pseudotime. 
+
 ```{r}
 PT <- slingPseudotime(sds)
 
@@ -431,7 +439,9 @@ ggsave("./outputs/Overall_mtD2curve1_PT.png", height = 2, width = 6, dpi = 600)
 
 ```{r}
 sub <- tmp[tmp$Experiment == "Set1",] #Cohort #1
-sub <- sub[sub$condition != "Cre",]
+sub <- sub[sub$condition != "Cre",] #Mitofat mice
+
+##Ordering Factors
 sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
 sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
 
@@ -443,12 +453,12 @@ ggplot(sub, aes(x = age, fill = Major)) +
     theme_classic() + 
     scale_fill_manual(values = tableau_color_pal()(10))
 ggsave("./outputs/proportion_chart_set1.pdf")
-
 ```
 
 ## Figure 2D
-```{r}
 
+Same code for part of Figure 1E
+```{r}
 y <- sub %>% group_by(cluster.sq, tissue, age, mtD2_pos, .drop = F) %>%
     summarise(n = n()) %>%
     ungroup() %>%
@@ -479,7 +489,6 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
     theme_classic() + 
     guides(color = F) + 
     scale_color_manual(values = mycolors) + 
-    #geom_text_repel(aes(label = round(scale, 3)*100), size = 2) +
     theme(axis.text.x = element_blank(), 
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
@@ -487,7 +496,7 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
 
 ## Figure 2E
 
-Please see figure 1G for more details on the phate and sds construction
+Please see figure 1G for more details on the phate and sds construction. 
 ```{r}
 sds <- readRDS("./data/processed/slingshot.rds")
 phate <- readRDS("./data/processed/phate.rds")
@@ -501,6 +510,7 @@ sub <- sub[sub$condition != "Cre",]
 sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
 sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
 
+#Plots the clusters in order
 sub <- sub[order(sub$cluster.sq, decreasing = T),]
 
 ggplot(sub, aes(x=curve1, y =mtD2)) + 
@@ -513,6 +523,10 @@ ggplot(sub, aes(x=curve1, y =mtD2)) +
 
 ggsave("./outputs/Set1_mtD2curve1_PT.pdf", height = 4, width = 6)
 
+
+#############################################################
+#Graphing myeloid-relevant genes across all of cohort 1
+############################################################
 ggplot(sub, aes(x=curve1, y =Ly6C)) + 
   geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
   geom_smooth(method = "loess", se=FALSE, color = "black") + 
@@ -553,8 +567,8 @@ ggsave("./outputs/Set1_mtD2curve2_PT.pdf", height = 4, width = 6)
 
 ## Figure 3C
 ```{r}
-sub <- tmp[tmp$Experiment == "Set2",]
-sub <- sub[sub$condition != "Cre",]
+sub <- tmp[tmp$Experiment == "Set2",] #Isolating Cohort 2
+sub <- sub[sub$condition != "Cre",] #Isolating Mitofat
 
 ggplot(sub, aes(x = chow, fill = Major)) +
     geom_bar(position = "fill")  + 
@@ -576,9 +590,6 @@ y <- sub %>% group_by(cluster.sq, tissue, chow, mtD2_pos, .drop = F) %>%
     complete(cluster.sq, tissue, chow, mtD2_pos,
              fill = list(n = 0))
 y <- na.omit(y)
-
-
-#y <- y[y$adip_cluster != 21,]
 
 #One more layer of summary
 y <- y %>% group_by(cluster.sq, tissue, chow) %>%
@@ -602,7 +613,6 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
     theme_classic() + 
     guides(color = F) + 
     scale_color_manual(values = mycolors) + 
-    #geom_text_repel(aes(label = round(scale, 3)*100), size = 2) +
     theme(axis.text.x = element_blank(), 
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
@@ -612,6 +622,8 @@ ggsave("./outputs/MtD2_proportion_set2.pdf", height = 4.5, width=8)
 
 
 ## Figure 3E
+
+Please see figure 1G for more details on the phate and sds construction. 
 
 ```{r}
 sds <- readRDS("./data/processed/slingshot.rds")
@@ -623,6 +635,8 @@ sub <- data.frame(sub, PT)
 sub <- data.frame(sub, phate$embedding)
 sub <- sub[sub$Experiment != "Set1",] #Cohort #2
 sub <- sub[sub$condition != "Cre",]
+
+#Ordering Factors
 sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
 sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
 
