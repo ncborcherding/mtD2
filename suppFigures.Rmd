@@ -1,0 +1,274 @@
+---
+title: Supplemetanl Figures for MtD2 transfer from immune cells in mice.
+author: 
+- name: Nick Borcherding
+  email: ncborch@gmail.com
+  affiliation: Washington University in St. Louis, School of Medicine, St. Louis, MO, USA
+date: "April 8th, 2021"
+output:
+  BiocStyle::html_document:
+    toc_float: true
+vignette: >
+  %\VignetteEngine{knitr::knitr}
+  %\VignetteIndexEntry{MtD2 Data Analysis}
+  %\usepackage[UTF-8]{inputenc}
+---
+
+
+```{r}
+library(flowCore)
+library(CATALYST)
+library(viridis)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(ggthemes)
+library(readxl)
+library(RColorBrewer)
+```
+
+```{r, eval=FALSE}
+files <- readxl::read_xlsx("./tables/file.inventory.xlsx")
+ 
+############################
+#Version 1: Precompensation
+############################
+
+fs2 <- read.flowSet(paste0("./data/fcs/", files$file_id), transformation = FALSE, truncate_max_range = FALSE)
+
+
+
+transList <- estimateLogicle(fs2[[2]], names(markernames(fs2[[2]])))
+
+fs_comp2 <- transform(fs2, transList)
+saveRDS(fs_comp2, file = "trans_flowset.rds")
+
+fs_comp2 <- readRDS("trans_flowset.rds")
+
+"fcs_colname" <- c(names(markernames(fs_comp2)), "SSC-H", "SSC-A", "FSC-H", "FSC-A")
+"antigen" <-  c(unname(markernames(fs_comp2)), "SSC.H", "SSC.A", "FSC.H", "FSC.A")
+panel <- data.frame(fcs_colname, antigen)
+panel$marker_class <- ifelse(panel$antigen %in% c("NKp46", "mtD2"), "state", 
+                             ifelse(panel$antigen %in% c("Zombie", "SSC.H", "SSC.A", "FSC.H", "FSC.A") , "none", "type"))
+
+files$file_origin <- files$file_id
+sce <- prepData(fs_comp2, panel, files, features = panel$fcs_colname, 
+                md_cols = list(file = "file_id", id = "sample_id", factors = c("tissue", "condition", "age", "file_origin")), FACS = TRUE, transform = FALSE)
+
+assayNames(sce) <- "exprs" #This is the default assay for CATALYST
+saveRDS(sce, file = "sce_logicale.rds")
+
+```
+
+# Filtering Data
+
+The first step is filtering the single-cell object by 
+1) FSC/SSC (removing debris)
+2) Selecting single-cells
+3) Removing cells with too high DNA
+
+```{r, eval = FALSE}
+sce <- readRDS("sce_logicale.rds")
+
+#Step 1: Removing Debris
+dir.create("visualizations")
+chs <- c("FSC.A", "SSC.A")
+pdf("./visualizations/flow_FSC.AvSSC.A.pdf", height =4, width = 4)
+plotScatter(sce, chs)
+dev.off()
+sce <- filterSCE(sce, sce@assays@data$exprs["FSC.A",] >= 250000 & sce@assays@data$exprs["FSC.A",] <= 4000000)
+sce <- filterSCE(sce, sce@assays@data$exprs["SSC.A",] >= 100000  & sce@assays@data$exprs["SSC.A",] <= 4000000)
+
+pdf("./visualizations/flow_FSC.AvSSC.A_cutoff.pdf", height =4, width = 4)
+plotScatter(sce, chs)
+dev.off()
+
+#Step 2: Getting Single Cells
+chs <- c("FSC.H", "FSC.A")
+pdf("./visualizations/flow_FSC.AvFSC.H.pdf", height =4, width = 4)
+plotScatter(sce, chs)
+dev.off()
+
+sce <- filterSCE(sce, sce@assays@data$exprs["FSC.H",]/sce@assays@data$exprs["FSC.A",] >= 0.75 &
+                     sce@assays@data$exprs["FSC.H",]/sce@assays@data$exprs["FSC.A",] <= 1.25)
+
+sce <- filterSCE(sce, sce@assays@data$exprs["FSC.H",] <= 2250000 &
+                     sce@assays@data$exprs["FSC.A",] <= 22500000)
+
+pdf("./visualizations/flow_FSC.AvFSC.H_cutoff.pdf", height =4, width = 4)
+plotScatter(sce, chs)
+dev.off()
+
+#Step 3: Removing cells with too much DNA
+chs <- c("FSC.A", "Zombie")
+pdf("./visualizations/flow_FSC.AvZombie.pdf", height =4, width = 4)
+plotScatter(sce, chs)
+dev.off()
+sce <- filterSCE(sce, sce@assays@data$exprs["Zombie",] <= 2)
+
+pdf("./visualizations/flow_FSC.AvZombie_cutoff.pdf", height =4, width = 4)
+plotScatter(sce, chs)
+dev.off()
+
+
+saveRDS(sce, file = "sce_flowset_filtered_logical.rds")
+```
+
+# Dimensional Reduction
+
+We will perform dimensional reduction on the single-cell object (both TSNE and UMAP) and then use the R package bluster to cluster the cells.
+
+```{r, eval=FALSE}
+sce <- readRDS("sce_flowset_filtered_logical.rds")
+sce <- runDR(sce, "TSNE", cells = 5e3, features = "type") #Sampling 5000 cells for generating TSNE
+sce <- runDR(sce, "UMAP", cells = 5e3, features = "type") #Sampling 5000 cells for generating UMAP
+
+library(bluster)
+
+set.seed(0101010)
+kgraph.clusters <- clusterRows(na.omit(sce@int_colData@listData$reducedDims$UMAP),
+    TwoStepParam(
+        first=KmeansParam(centers=1000),
+        second=NNGraphParam(k=5)
+    )
+)
+
+tmp <- data.frame(na.omit(sce@int_colData@listData$reducedDims$UMAP), cluster.sq = kgraph.clusters)
+
+```
+
+
+```{r, eval = F}
+colData <- na.omit(data.frame(colData(sce), sce@int_colData@listData$reducedDims$UMAP, t(sce@assays@data$exprs)))
+tmp <- data.frame(cluster.sq = kgraph.clusters, colData)
+
+tmp <- tmp[tmp$cluster.sq != 12,] #doublets
+tmp$cluster.sq <- ifelse(tmp$cluster.sq == 17 & tmp$X1 > -10, 12, tmp$cluster.sq) #Replacing removed clusters
+
+saveRDS(tmp, file = "./data/supplementaryDF.rds")
+```
+
+```{r}
+tmp <- readRDS("./data/supplementaryDF.rds")
+
+dir.create("./outputs")
+dir.create("./outputs/supplemental")
+table <- tmp %>%
+    group_by(cluster.sq) %>%
+    summarise(across(c(8:42), median))
+normalize <- function(x)
+{
+    (x- min(x)) /(max(x)-min(x))
+}
+
+table[,2:36] <- sapply(table[,2:36], normalize)
+ann <- data.frame(table[,1])
+heat <- t(table[,2:36])
+heat <- heat[!grepl("SSC|FSC|Zombie|mtD2", rownames(heat)),]
+
+colnames(heat) <- paste0(1:ncol(heat))
+pal_ann <- mycolors
+names(pal_ann) <- 1:21
+
+pdf("./outputs/supplemental/prelim.heatmap.pdf", height = 6, width = 6)
+pheatmap::pheatmap(as.matrix(heat), color = viridis_pal()(100), annotation_col = ann, annotation_colors = list(cluster.sq = pal_ann))
+dev.off()
+```
+
+```{r}
+table <- tmp %>%
+    group_by(cluster.sq, tissue) %>%
+    summarise(n=n())
+
+table <- table %>%
+    group_by(tissue) %>%
+    mutate(sum = sum(n))
+table$scale <- table$n/table$sum
+table$tissue <- factor(table$tissue, levels = c("eWAT", "iWAT", "BAT", "Spleen", "Thymus"))
+ggplot(table, aes(x = as.factor(cluster.sq), y = scale, fill = tissue)) +
+    geom_bar(stat = "identity", position = "fill") +
+    scale_fill_manual(values = rev(viridis_pal()(5))) + 
+    theme_classic() 
+ggsave("./outputs/supplemental/Tissue_ProportionChart.pdf", height = 3, width = 6)
+
+
+table <- tmp %>%
+    group_by(cluster.sq, age) %>%
+    summarise(n=n())
+
+
+table <- table %>%
+    group_by(age) %>%
+    mutate(sum = sum(n))
+table$scale <- table$n/table$sum
+
+colors <- tableau_color_pal()(2)
+ggplot(table, aes(x = as.factor(cluster.sq), y = scale, fill = age)) +
+    geom_bar(stat = "identity", position = "fill") +
+    scale_fill_manual(values = rev(colors)) + 
+theme_classic() 
+ggsave("./outputs/supplemental/Age_ProportionChart.pdf", height = 3, width = 6)
+```
+
+
+```{r}
+annot <- readxl::read_xlsx("./tables/supplemental.annot.xlsx")[,1:2]
+tmp <- merge(tmp, annot, by.x = "cluster.sq", by.y = "Cluster")
+
+pal <- tableau_color_pal()(10)
+pal <- pal[-2]
+
+ggplot(tmp, aes(x = age, fill = Major)) +
+    geom_bar(position = "fill")  + 
+    coord_flip() + 
+    facet_grid(tissue~.) + 
+    theme_classic() + 
+    scale_fill_manual(values = pal)
+ggsave("./outputs/supplemental/proportion_chart_Overall.pdf")
+```
+
+
+```{r}
+mycolors <- colorRampPalette(brewer.pal(8, "Set1"))(length(unique(tmp$cluster.sq)))
+centers = tmp %>% group_by(cluster.sq) %>% select(X1, 
+    X2) %>% summarize_all(mean)
+
+ggplot(tmp, aes(x=X1, y=X2, color = as.factor(cluster.sq))) +
+  geom_point(stroke = 0) + 
+    geom_text(data = centers, aes(label = cluster.sq), color = "black") + 
+  scale_color_manual(values = mycolors) + 
+  theme_void() +
+    guides(color = F)
+ggsave("./outputs/supplemental/cluster.png", height = 4, width = 4.25, dpi = 800)
+```
+```{r}
+tmp$age <- factor(tmp$age, levels = c("5mo", "20mo"))
+ggplot(tmp, aes(x=X1, y=X2, color = as.factor(cluster.sq))) +
+  geom_point(stroke = 0) + 
+  scale_color_manual(values = mycolors) + 
+  theme_void() +
+  facet_grid(age~tissue, scales = "free") + 
+    guides(color = F) +
+  theme(strip.background = element_blank(),
+     strip.text = element_blank())
+
+ggsave("./outputs/supplemental/Overall_Clusters.png", height = 8, width = 21.25, dpi = 600)
+```
+
+
+
+```{r}
+tmp$mtD2_pos <- ifelse(tmp$mtD2 >= 1.5, "Yes", "No")
+tmp$tissue <- factor(tmp$tissue, levels = c("eWAT", "iWAT", "BAT", "Spleen", "Thymus"))
+plot <- ggplot(data = tmp, aes(x=X1, y=X2)) +
+  geom_point(stroke = 0, size = 0.5, color = "grey") 
+plot + stat_density_2d(subset(tmp, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..level..), geom = "polygon", h =2)  + 
+    scale_fill_viridis() + 
+    guides(fill = F) + 
+    theme_void() + 
+    facet_grid(.~tissue, scales = "free") + 
+   theme(strip.background = element_blank(),
+     strip.text = element_blank())
+ggsave("./outputs/supplemental/Overall_mtD2_positive.png", height = 4, width = 21.25, dpi = 600)
+```
+
