@@ -31,6 +31,7 @@ library(readxl)
 library(slingshot)
 library(phateR)
 library(RColorBrewer)
+library(patchwork)
 ```
 
 
@@ -235,16 +236,42 @@ ggsave("./outputs/proportion_chart_Overall.pdf")
 ```{r}
 tmp$mtD2_pos <- ifelse(tmp$mtD2 >= 1.5, "Yes", "No")
 tmp$tissue <- factor(tmp$tissue, levels = c("eWAT", "iWAT", "BAT"))
-plot <- ggplot(data = tmp, aes(x=X1, y=X2)) +
+EWAT <- tmp[tmp$tissue == "eWAT",]
+IWAT <- tmp[tmp$tissue == "iWAT",]
+BAT <- tmp[tmp$tissue == "BAT",]
+tissue.list <- list(EWAT, IWAT, BAT)
+
+plot1 <- ggplot(data = EWAT, aes(x=X1, y=X2)) +
   geom_point(stroke = 0, size = 0.5, color = "grey") 
-plot + stat_density_2d(subset(tmp, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..level..), geom = "polygon", h =2)  + 
+plot1 <- plot1 + stat_density_2d(subset(EWAT, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..level..), geom = "polygon", h =2)  + 
     scale_fill_viridis() + 
     guides(fill = F) + 
     theme_void() + 
-    facet_grid(.~tissue, scales = "free") + 
     theme(strip.background = element_blank(),
       strip.text = element_blank())
-ggsave("./outputs/Overall_mtD2_positive.png", height = 4, width = 12.74, dpi = 600)
+
+plot3
+
+plot2 <- ggplot(data = IWAT, aes(x=X1, y=X2)) +
+  geom_point(stroke = 0, size = 0.5, color = "grey") 
+plot2 <- plot2 + stat_density_2d(subset(IWAT, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..level..), geom = "polygon", h =2)  + 
+    scale_fill_viridis() + 
+    guides(fill = F) + 
+    theme_void() + 
+    theme(strip.background = element_blank(),
+      strip.text = element_blank())
+
+plot3 <- ggplot(data = BAT, aes(x=X1, y=X2)) +
+  geom_point(stroke = 0, size = 0.5, color = "grey") 
+plot3 <- plot3 + stat_density_2d(subset(BAT, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..level..), geom = "polygon", h =2)  + 
+    scale_fill_viridis() + 
+    guides(fill = F) + 
+    theme_void() + 
+    theme(strip.background = element_blank(),
+      strip.text = element_blank())
+
+plot1 + plot2 + plot3
+ggsave("./outputs/Overall_mtD2_positive.png", height = 4, width = 12.75, dpi = 600)
 ```
 
 ## Figure 1E
