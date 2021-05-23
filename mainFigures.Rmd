@@ -281,6 +281,7 @@ For Figure 1E, we are generating the clock face diagrams for both Cre-negative a
 Cre-negative Clock Diagram
 ```{r}
 sub <- tmp[tmp$Experiment != "Set2",]
+clusters2Type <- unique(sub[,c("cluster.sq", "Major")])
 sub <- sub[sub$condition == "Cre",] #Only the Cre-negative samples
 sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
 
@@ -306,10 +307,35 @@ y <- y[y$mtD2_pos == "Yes",]
 y$age <- factor(y$age, levels = c("5mo", "20mo"))
 y$axis <- 1
 
+y <- merge(y, clusters2Type, by = "cluster.sq")
+
 update_geom_defaults("point", list(alpha=1))
-ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
-    geom_bar(stat = "identity") + 
-    geom_point(aes(color = as.factor(cluster.sq), y = axis*70, size = sum)) + 
+
+
+labels <- NULL
+pal <- tableau_color_pal()(10)
+names(pal) <- sort(unique(clusters2Type$Major))
+clusters <- unique(clusters2Type$cluster.sq)
+major <- sort(unique(clusters2Type$Major))
+for(i in seq_along(clusters)) {
+  count <- as.numeric(i)
+  if (i == 1) {
+    labels <- ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
+      geom_bar(stat = "identity") +
+      geom_point(aes(color = as.factor(cluster.sq), y = axis*70, size = sum)) + 
+      geom_rect(mapping=aes_string(xmin=(count-0.5), xmax=(count+0.5), ymin=85, ymax=100), fill = unname(pal[clusters2Type[i,"Major"]])) 
+      
+      
+      
+  }
+  else{
+    labels <- labels + geom_rect(mapping=aes_string(xmin=(count-0.5), xmax=(count+0.5), ymin=85, ymax=100), fill = unname(pal[clusters2Type[i,"Major"]]))
+  }
+}
+
+labels + 
+  geom_hline(aes(yintercept=85)) + 
+  geom_hline(aes(yintercept=100)) + 
     coord_polar() + 
     facet_grid(y$age ~ y$tissue) + 
     theme_classic() + 
@@ -318,7 +344,7 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
     theme(axis.text.x = element_blank(), 
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
-labs(size = "Number of Cells")
+
 ggsave("./outputs/MtD2_proportion_set1_Crenegative.pdf", height = 4.5, width=8)
 ```
 
@@ -328,6 +354,7 @@ sub <- tmp[tmp$Experiment == "Set1",]
 sub <- sub[sub$condition != "Cre",] #Only the MitoFat Samples
 sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
 sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
+sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
 
 y <- sub %>% group_by(cluster.sq, tissue, age, mtD2_pos, .drop = F) %>%
     summarise(n = n()) %>%
@@ -350,10 +377,36 @@ y <- y[y$mtD2_pos == "Yes",]
 y$age <- factor(y$age, levels = c("5mo", "20mo"))
 y$axis <- 1
 
+y <- merge(y, clusters2Type, by = "cluster.sq")
+
 update_geom_defaults("point", list(alpha=1))
-ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
-    geom_bar(stat = "identity") + 
-    geom_point(aes(color = as.factor(cluster.sq), y = axis*75, size = sum)) + 
+    
+  
+
+labels <- NULL
+pal <- tableau_color_pal()(10)
+names(pal) <- sort(unique(clusters2Type$Major))
+clusters <- unique(clusters2Type$cluster.sq)
+major <- sort(unique(clusters2Type$Major))
+for(i in seq_along(clusters)) {
+  count <- as.numeric(i)
+  if (i == 1) {
+    labels <- ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
+      geom_bar(stat = "identity") +
+      geom_point(aes(color = as.factor(cluster.sq), y = axis*70, size = sum)) + 
+      geom_rect(mapping=aes_string(xmin=(count-0.5), xmax=(count+0.5), ymin=85, ymax=100), fill = unname(pal[clusters2Type[i,"Major"]])) 
+      
+      
+      
+  }
+  else{
+    labels <- labels + geom_rect(mapping=aes_string(xmin=(count-0.5), xmax=(count+0.5), ymin=85, ymax=100), fill = unname(pal[clusters2Type[i,"Major"]]))
+  }
+}
+
+labels + 
+  geom_hline(aes(yintercept=85)) + 
+  geom_hline(aes(yintercept=100)) + 
     coord_polar() + 
     facet_grid(y$age ~ y$tissue) + 
     theme_classic() + 
@@ -362,7 +415,8 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
     theme(axis.text.x = element_blank(), 
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
-ggsave("./outputs/MtD2_proportion_set1.pdf", height = 3, width=8)
+  
+ggsave("./outputs/MtD2_proportion_set1.pdf", height = 4.5, width=8)
 ```
 
 
@@ -632,19 +686,41 @@ y <- y[y$mtD2_pos == "Yes",]
 y$axis <- 1
 
 update_geom_defaults("point", list(alpha=1))
-ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
-    geom_bar(stat = "identity") + 
-    geom_point(aes(color = as.factor(cluster.sq), y = axis*75, size = sum)) + 
+
+labels <- NULL
+pal <- tableau_color_pal()(10)
+names(pal) <- sort(unique(clusters2Type$Major))
+clusters <- unique(clusters2Type$cluster.sq)
+major <- sort(unique(clusters2Type$Major))
+for(i in seq_along(clusters)) {
+  count <- as.numeric(i)
+  if (i == 1) {
+    labels <- ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
+      geom_bar(stat = "identity") +
+      geom_point(aes(color = as.factor(cluster.sq), y = axis*70, size = sum)) + 
+      geom_rect(mapping=aes_string(xmin=(count-0.5), xmax=(count+0.5), ymin=85, ymax=100), fill = unname(pal[clusters2Type[i,"Major"]])) 
+      
+      
+      
+  }
+  else{
+    labels <- labels + geom_rect(mapping=aes_string(xmin=(count-0.5), xmax=(count+0.5), ymin=85, ymax=100), fill = unname(pal[clusters2Type[i,"Major"]]))
+  }
+}
+
+labels + 
+  geom_hline(aes(yintercept=85)) + 
+  geom_hline(aes(yintercept=100)) + 
     coord_polar() + 
-    facet_grid(y$tissue ~ y$chow ) + 
+    facet_grid(y$chow ~ y$tissue) + 
     theme_classic() + 
     guides(color = F) + 
     scale_color_manual(values = mycolors) + 
     theme(axis.text.x = element_blank(), 
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
-labs(size = "Number of Cells")
-ggsave("./outputs/MtD2_proportion_set2.pdf", height = 4.5, width=8)
+
+ggsave("./outputs/MtD2_proportion_set2.pdf", height = 6.75, width=8)
 ```
 
 
