@@ -311,6 +311,12 @@ y <- merge(y, clusters2Type, by = "cluster.sq")
 
 update_geom_defaults("point", list(alpha=1))
 
+#Multiple levels of annotation here - 
+#geom_bar will be the relative percent of mtD2+ cells in the clusters
+#geom_point will be the size of the cluster
+#geom_rect will be the cell type labeling for the cluster - this requires looping through each cluster 
+#and adding a rectangle manually - it is not pretty, but it gets the job done and create a ggproto object
+#with 23 layers. 
 
 labels <- NULL
 pal <- tableau_color_pal()(10)
@@ -380,8 +386,6 @@ y$axis <- 1
 y <- merge(y, clusters2Type, by = "cluster.sq")
 
 update_geom_defaults("point", list(alpha=1))
-    
-  
 
 labels <- NULL
 pal <- tableau_color_pal()(10)
