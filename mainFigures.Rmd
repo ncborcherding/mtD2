@@ -181,7 +181,7 @@ Figure 1 is a basic survey of the combined data, including the defining cell typ
 ```{r}
 dir.create("./outputs")
 tmp <- readRDS("./data/processed/integratedDF.rds")
-mycolors <- colorRampPalette(brewer.pal(8, "Set1"))(length(unique(tmp$cluster.sq)))
+mycolors <- RColorBrewer::colorRampPalette(brewer.pal(8, "Set1"))(length(unique(tmp$cluster.sq)))
 
 #Embedded positions of the UMAP are X1 (UMAP1) and X2 (UMAP2)
 
@@ -284,6 +284,7 @@ sub <- tmp[tmp$Experiment != "Set2",]
 clusters2Type <- unique(sub[,c("cluster.sq", "Major")])
 sub <- sub[sub$condition == "Cre",] #Only the Cre-negative samples
 sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
+sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
 
 #Need to use the tidyr complete to be able to properly sum things
 y <- sub %>% group_by(cluster.sq, tissue, age, mtD2_pos, .drop = F) %>%
@@ -305,6 +306,7 @@ y <- na.omit(y)
 #Isolate only the "yes" cells for Bar Graph
 y <- y[y$mtD2_pos == "Yes",]
 y$age <- factor(y$age, levels = c("5mo", "20mo"))
+y$tissue <- factor(y$tissue, levels = c("eWAT", "iWAT", "BAT"))
 y$axis <- 1
 
 y <- merge(y, clusters2Type, by = "cluster.sq")
@@ -687,6 +689,7 @@ y <- na.omit(y)
 
 #Isolate only the "yes" cells for Bar Graph
 y <- y[y$mtD2_pos == "Yes",]
+y$tissue <- factor(y$tissue, levels = c("eWAT", "iWAT", "BAT"))
 y$axis <- 1
 
 update_geom_defaults("point", list(alpha=1))
@@ -716,7 +719,7 @@ labels +
   geom_hline(aes(yintercept=85)) + 
   geom_hline(aes(yintercept=100)) + 
     coord_polar() + 
-    facet_grid(y$chow ~ y$tissue) + 
+    facet_grid(y$tissue ~ y$chow) + 
     theme_classic() + 
     guides(color = F) + 
     scale_color_manual(values = mycolors) + 
