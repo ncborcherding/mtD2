@@ -250,8 +250,6 @@ plot1 <- plot1 + stat_density_2d(subset(EWAT, mtD2_pos == "Yes"), mapping = aes(
     theme(strip.background = element_blank(),
       strip.text = element_blank())
 
-plot3
-
 plot2 <- ggplot(data = IWAT, aes(x=X1, y=X2)) +
   geom_point(stroke = 0, size = 0.5, color = "grey") 
 plot2 <- plot2 + stat_density_2d(subset(IWAT, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..level..), geom = "polygon", h =2)  + 
@@ -426,97 +424,6 @@ ggsave("./outputs/MtD2_proportion_set1.pdf", height = 4.5, width=8)
 ```
 
 
-## Figure 1F
-
-First generating the PHATE embedding and slingshot trajectories. Both of these calculations are time consuming, so the following will not be evaluated, but in place for the sake of transparency. Both of the resulting objects are saved in the "./data" directory and are loaded in the subsequent code block. Also note that the slingshot command is generating curves for 3-dimensions of the phate embedding. 
-
-```{r eval=FALSE}
-sub <- tmp[tmp$Major %in% c("Dendritic Cells","Macrophages", "Monocytes"),]
-
-phate <- phate(data, knn=20, t = 50)
-
-sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
-sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
-saveRDS(phate, file =  "./data/processed/phate.rds")
-
-
-
-sds <- slingshot(sub[,48:50], clusterLabels = sub$cluster.sq, allow.breaks = TRUE, stretch = 0, start.clus = 21)
-saveRDS(sds, file =  "./data/processed/slingshot.rds")
-```
-
-
-```{r}
-sds <- readRDS("./data/processed/slingshot.rds")
-phate <- readRDS("./data/processed/phate.rds")
-
-sub <- tmp[tmp$Major %in% c("Dendritic Cells","Macrophages", "Monocytes"),]
-sub <- data.frame(sub, phate$embedding)
-####################################
-#Graph 1: Phate Embedding by cluster
-####################################
-
-pal <- mycolors[unique(sub$cluster.sq)] #selecting just the myeloid clusters
-ggplot(data = sub, aes(PHATE1, PHATE2, color = as.factor(cluster.sq))) +
-  geom_point(stroke = 0) +
-    scale_color_manual(values = pal) + 
-    theme_void() +
-    theme(strip.background = element_blank(),
-      strip.text = element_blank()) + 
-    guides(color = F)
-ggsave("./outputs/Overall_byPhate.png",  bg = "transparent", height = 4, width = 4.25, dpi = 600)
-
-
-pdf("./outputs/PT1.pdf", height = 4, width = 4.25)
-plot(sds@reducedDim[,1:2], col  = "grey", pch = 16, cex = 0.25)
-lines(sds, lwd = 2, type = 'lineages', col = 'black')
-dev.off()
-
-
-pdf("./outputs/PT2.pdf", height = 4, width = 4.25)
-plot(reducedDim(sds), col = "grey", pch = 16, cex = 0.5)
-lines(sds, lwd = 2, col = 'black')
-dev.off()
-
-##############################
-#Graph 2: MtD2 level by tissue
-#############################
-ggplot(data = sub, aes(PHATE1, PHATE2, color = mtD2)) +
-  geom_point(stroke = 0, size = 1.5) +
-    facet_grid(tissue~.) + 
-    scale_color_viridis() + 
-    theme_void() +
-    theme(strip.background = element_blank(),
-      strip.text = element_blank()) + 
-    guides(color = F)
-ggsave("./outputs/Overall_mtD2posValue_byPhate.png", width = 4.25, height = 12, dpi = 600)
-```
-
-## Figure 1G
-
-Looking at mtD2 for the first trajectory over pseudotime. 
-
-```{r}
-PT <- slingPseudotime(sds)
-
-sub <- data.frame(sub, PT)
-sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
-sub<- sub[order(sub$cluster.sq, decreasing = T),] #Ordering the clusters for graphing purposes
-
-ggplot(sub, aes(x=curve1, y =mtD2)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  facet_grid(.~tissue) + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  scale_color_manual(values = pal) + 
-  theme_void() + guides(color = F) +
-    theme(strip.background = element_blank(),
-      strip.text = element_blank())
-
-
-ggsave("./outputs/Overall_mtD2curve1_PT.png", height = 2, width = 6, dpi = 600)
-```
-
 
 **********
 
@@ -581,72 +488,6 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
           axis.title = element_blank()) 
 ```
 
-## Figure 2E
-
-Please see figure 1G for more details on the phate and sds construction. 
-```{r}
-sds <- readRDS("./data/processed/slingshot.rds")
-phate <- readRDS("./data/processed/phate.rds")
-
-sub<- tmp[tmp$Major %in% c("Dendritic Cells","Macrophages", "Monocytes"),]
-PT <- slingPseudotime(sds)
-sub <- data.frame(sub, PT)
-sub <- data.frame(sub, phate$embedding)
-sub <- sub[sub$Experiment == "Set1",] #Cohort #1
-sub <- sub[sub$condition != "Cre",]
-sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
-sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
-
-#Plots the clusters in order
-sub <- sub[order(sub$cluster.sq, decreasing = T),]
-
-ggplot(sub, aes(x=curve1, y =mtD2)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  facet_grid(age~tissue) + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  scale_color_manual(values = pal) + 
-  theme_classic() + guides(color = F)
-
-ggsave("./outputs/Set1_mtD2curve1_PT.pdf", height = 4, width = 6)
-
-
-#############################################################
-#Graphing myeloid-relevant genes across all of cohort 1
-############################################################
-ggplot(sub, aes(x=curve1, y =Ly6C)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  scale_color_manual(values = pal) + 
-  theme_classic() + guides(color = F)
-ggsave("./outputs/Set1_Ly6C_c1_PT.pdf", height = 2, width = 2)
-
-ggplot(sub, aes(x=curve1, y =F4.80)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  scale_color_manual(values = pal) + 
-  theme_classic() + guides(color = F)
-ggsave("./outputs/Set1_F4.80_c1_PT.pdf", height = 2, width = 2)
-
-ggplot(sub, aes(x=curve1, y =MHC.II)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  scale_color_manual(values = pal) + 
-  theme_classic() + guides(color = F)
-ggsave("./outputs/Set1_MHC.II_c1_PT.pdf", height = 2, width = 2)
-
-ggplot(sub, aes(x=curve2, y =mtD2)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  facet_grid(age~tissue) + 
-  scale_color_manual(values = pal) + 
-  theme_classic() + guides(color = F)
-ggsave("./outputs/Set1_mtD2curve2_PT.pdf", height = 4, width = 6)
-```
 
 
 **********************
@@ -729,42 +570,6 @@ labels +
 
 ggsave("./outputs/MtD2_proportion_set2.pdf", height = 6.75, width=8)
 ```
-
-
-## Figure 3E
-
-Please see figure 1G for more details on the phate and sds construction. 
-
-```{r}
-sds <- readRDS("./data/processed/slingshot.rds")
-phate <- readRDS("./data/processed/phate.rds")
-
-sub<- tmp[tmp$Major %in% c("Dendritic Cells","Macrophages", "Monocytes"),]
-PT <- slingPseudotime(sds)
-sub <- data.frame(sub, PT)
-sub <- data.frame(sub, phate$embedding)
-sub <- sub[sub$Experiment != "Set1",] #Cohort #2
-sub <- sub[sub$condition != "Cre",]
-
-#Ordering Factors
-sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
-sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
-
-ggplot(sub, aes(x=curve1, y =mtD2)) + 
-  geom_point(aes(color = as.factor(cluster.sq)), size = 0.5) + 
-  geom_smooth(method = "loess", se=FALSE, color = "black") + 
-  facet_grid(tissue~chow) + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  scale_color_manual(values = pal) + 
-  theme_classic() + guides(color = F)
-ggsave("Set2_mtD2curve1_PT.pdf", height = 6, width = 6)
-```
-
-
-
-
-
-
 
 
 
