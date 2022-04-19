@@ -43,7 +43,7 @@ The following is the initial data processing steps taken
 ## Load Data Inventory
 
 ```{r, eval=FALSE}
-files <- read_xlsx("./tables/file.inventory_combined2.xlsx")
+files <- read.csv("./tables/file.inventory.csv")[,c(1:7)]
  
 ############################
 #Version 1: Precompensation
@@ -195,41 +195,96 @@ ggplot(tmp, aes(x=X1, y=X2, color = as.factor(cluster.sq))) +
   scale_color_manual(values = mycolors) + 
   theme_void() +
     guides(color = F)
-ggsave("./outputs/cluster.png", height = 4, width = 5, dpi = 600)
 
 annot <- readxl::read_xlsx("./tables/annot.xlsx")[,1:2]
 tmp <- merge(tmp, annot, by.x = "cluster.sq", by.y = "Cluster")
-
-###################
-#Mini Celltype UMAP
-####################
-
-ggplot(tmp, aes(x=X1, y = X2)) + 
-    geom_point(aes(color = as.factor(Major)), stroke = 0, size = 0.75) + 
-    scale_color_manual(values = tableau_color_pal()(10)) + 
-    guides(color = F) +
-    theme(
-      strip.background = element_blank(),
-      strip.text = element_blank(), 
-      plot.margin = margin(0,0,0,0), 
-      panel.grid = element_blank(),
-        panel.border = element_blank(), 
-      panel.spacing.x=unit(0.1, "lines"),
-      panel.spacing.y=unit(0.1, "lines"), 
-      panel.background = element_blank()) 
-ggsave("./outputs/OVERALL_UMAP_celltype.png", height = 4, width = 4.5, dpi = 600)
 ```
 
 
 ## Figure 1C
 ```{r}
-ggplot(tmp, aes(x = 1, fill = Major)) +
-    geom_bar(position = "fill")  + 
-    coord_flip() + 
-    facet_grid(tissue~.) + 
-    theme_classic() + 
-    scale_fill_manual(values = tableau_color_pal()(10))
-ggsave("./outputs/proportion_chart_Overall.pdf")
+list <- list(Macs = c(3,5), 
+             Mono = c(11,21),
+             Neutr = 9, 
+             DCs = 16, 
+             Eos = 7, 
+             ILC2 = c(19,20), 
+             NK = 8, 
+             Tcells = c(6,13,14,15), 
+             Bcells = c(12,17), 
+             NI = c(1,2,4,10,18))
+
+############################################
+#Getting Numbers of Cells from sampled data
+############################################
+
+clusters <- tmp$cluster.sq
+tmp$cellType <- NA
+for(i in seq_along(clusters)) {
+  tmp$cellType[i] <- names(list)[grep(paste0("\\b", clusters[i], "\\b") , list)]
+}
+
+summary <- tmp %>%
+ dplyr::group_by(sample_id, cellType) %>%
+  count()
+
+summary <- summary %>%
+  dplyr::group_by(sample_id) %>%
+  mutate(sum.sample = sum(n))
+
+############################################
+#Getting Numbers of Cells from total data
+############################################
+sce <- readRDS("sce_flowset_filtered_logical.rds")
+meta <- as.data.frame(sce@colData)
+
+
+total.sumamry <- as.data.frame(table(meta$sample_id))
+colnames(total.sumamry)[2] <- "total.cells"
+meta <- meta[,c(1,3,4,5)]
+meta <- unique(meta)
+
+table <- read.csv("./tables/file.inventory.csv")
+table <- table[,c(1,8)]
+
+##################################################
+#Combining the results of sampled and total cells
+################################################
+
+summary <- merge(summary, table, by = "sample_id")
+summary <- merge(summary, total.sumamry, by.x = "sample_id", by.y = "Var1")
+summary <- merge(summary, meta, by = "sample_id")
+
+#Calculating numbers per gram
+summary$est.num.per.gram <- ((summary$n/summary$sum.sample)*summary$total.cells)/summary$adipose.processed
+
+#Organizing data to graph
+
+summary$set <- stringr::str_split(summary$sample_id, "_", simplify = TRUE)[,1]
+summary$tissue <- stringr::str_split(summary$sample_id, "_", simplify = TRUE)[,2]
+summary$tissue <- stringr::str_split(summary$tissue, "-", simplify = TRUE)[,1]
+summary$tissue <- ifelse(summary$tissue == "iWat", "iWAT", summary$tissue)
+
+summary$tissue <- factor(summary$tissue, levels = c("eWAT", "iWAT", "BAT"))
+summary$cellType <- factor(summary$cellType, levels = c("Macs", "Mono", "Neutr", "DCs", "Eos", "ILC2", "NK", "Tcells", "Bcells", "NI"))
+
+
+df2 <- data_summary(summary, varname="est.num.per.gram", 
+                    groupnames=c("tissue", "cellType"))
+
+ggplot(df2, aes(x = cellType, y = est.num.per.gram, fill = tissue)) + 
+  geom_bar(stat = "identity", position = "dodge", color = "black") + 
+  geom_errorbar(aes(ymin=est.num.per.gram-(sd/sqrt(27)), ymax=est.num.per.gram+(sd/sqrt(27))), width=.5,
+                 position=position_dodge(.9)) + 
+  scale_fill_manual(values = c("white", "#DFC7AE", "#9E5C25")) + 
+  theme_classic() + 
+  ylab("Cells/gram adipose") + 
+  theme(axis.title.x = element_blank())
+
+
+stat.test <- summary %>%
+  group_by(cellType) %>%
+  t_test(est.num.per.gram ~ tissue) 
 ```
 
 ## Figure 1D
@@ -269,7 +324,6 @@ plot3 <- plot3 + stat_density_2d(subset(BAT, mtD2_pos == "Yes"), mapping = aes(x
       strip.text = element_blank())
 
 plot1 + plot2 + plot3
-ggsave("./outputs/Overall_mtD2_positive.png", height = 4, width = 12.75, dpi = 600)
 ```
 
 ## Figure 1E
@@ -279,10 +333,8 @@ For Figure 1E, we are generating the clock face diagrams for both Cre-negative a
 Cre-negative Clock Diagram
 ```{r}
 sub <- tmp[tmp$Experiment != "Set2",]
-clusters2Type <- unique(sub[,c("cluster.sq", "Major")])
 sub <- sub[sub$condition == "Cre",] #Only the Cre-negative samples
 sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
-sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
 
 #Need to use the tidyr complete to be able to properly sum things
 y <- sub %>% group_by(cluster.sq, tissue, age, mtD2_pos, .drop = F) %>%
@@ -304,44 +356,12 @@ y <- na.omit(y)
 #Isolate only the "yes" cells for Bar Graph
 y <- y[y$mtD2_pos == "Yes",]
 y$age <- factor(y$age, levels = c("5mo", "20mo"))
-y$tissue <- factor(y$tissue, levels = c("eWAT", "iWAT", "BAT"))
 y$axis <- 1
 
-y <- merge(y, clusters2Type, by = "cluster.sq")
-
 update_geom_defaults("point", list(alpha=1))
-
-#Multiple levels of annotation here - 
-#geom_bar will be the relative percent of mtD2+ cells in the clusters
-#geom_point will be the size of the cluster
-#geom_rect will be the cell type labeling for the cluster - this requires looping through each cluster 
-#and adding a rectangle manually - it is not pretty, but it gets the job done and create a ggproto object
-#with 23 layers. 
-
-labels <- NULL
-pal <- tableau_color_pal()(10)
-names(pal) <- sort(unique(clusters2Type$Major))
-clusters <- unique(clusters2Type$cluster.sq)
-major <- sort(unique(clusters2Type$Major))
-for(i in seq_along(clusters)) {
-  count <- as.numeric(i)
-  if (i == 1) {
-    labels <- ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
-      geom_bar(stat = "identity") +
-      geom_point(aes(color = as.factor(cluster.sq), y = axis*70, size = sum)) + 
-      geom_rect(mapping=aes_string(xmin=(count-0.5), xmax=(count+0.5), ymin=85, ymax=100), fill = unname(pal[clusters2Type[i,"Major"]])) 
-      
-      
-      
-  }
-  else{
-    labels <- labels + geom_rect(mapping=aes_string(xmin=(count-0.5), xmax=(count+0.5), ymin=85, ymax=100), fill = unname(pal[clusters2Type[i,"Major"]]))
-  }
-}
-
-labels + 
-  geom_hline(aes(yintercept=85)) + 
-  geom_hline(aes(yintercept=100)) + 
+ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
+    geom_bar(stat = "identity") + 
+    geom_point(aes(color = as.factor(cluster.sq), y = axis*70, size = sum)) + 
     coord_polar() + 
     facet_grid(y$age ~ y$tissue) + 
     theme_classic() + 
@@ -350,8 +370,7 @@ labels +
     theme(axis.text.x = element_blank(), 
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
-
-ggsave("./outputs/MtD2_proportion_set1_Crenegative.pdf", height = 4.5, width=8)
+labs(size = "Number of Cells")
 ```
 
 MitoFat Clock Diagram
@@ -360,99 +379,7 @@ sub <- tmp[tmp$Experiment == "Set1",]
 sub <- sub[sub$condition != "Cre",] #Only the MitoFat Samples
 sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
 sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
-sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
 
-y <- sub %>% group_by(cluster.sq, tissue, age, mtD2_pos, .drop = F) %>%
-    summarise(n = n()) %>%
-    ungroup() %>%
-    complete(cluster.sq, tissue, age, mtD2_pos,
-             fill = list(n = 0))
-y <- na.omit(y)
-
-#One more layer of summary
-y <- y %>% group_by(cluster.sq, tissue, age) %>%
-    mutate(sum = sum(n)) 
-
-#Scaling Values
-y$scale <- y$n/y$sum
-y$scale[is.nan(y$scale)] <- 0
-y <- na.omit(y)
-
-#Isolate only the "yes" cells for Bar Graph
-y <- y[y$mtD2_pos == "Yes",]
-y$age <- factor(y$age, levels = c("5mo", "20mo"))
-y$axis <- 1
-
-y <- merge(y, clusters2Type, by = "cluster.sq")
-
-update_geom_defaults("point", list(alpha=1))
-
-labels <- NULL
-pal <- tableau_color_pal()(10)
-names(pal) <- sort(unique(clusters2Type$Major))
-clusters <- unique(clusters2Type$cluster.sq)
-major <- sort(unique(clusters2Type$Major))
-for(i in seq_along(clusters)) {
-  count <- as.numeric(i)
-  if (i == 1) {
-    labels <- ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
-      geom_bar(stat = "identity") +
-      geom_point(aes(color = as.factor(cluster.sq), y = axis*70, size = sum)) + 
-      geom_rect(mapping=aes_string(xmin=(count-0.5), xmax=(count+0.5), ymin=85, ymax=100), fill = unname(pal[clusters2Type[i,"Major"]])) 
-      
-      
-      
-  }
-  else{
-    labels <- labels + geom_rect(mapping=aes_string(xmin=(count-0.5), xmax=(count+0.5), ymin=85, ymax=100), fill = unname(pal[clusters2Type[i,"Major"]]))
-  }
-}
-
-labels + 
-  geom_hline(aes(yintercept=85)) + 
-  geom_hline(aes(yintercept=100)) + 
-    coord_polar() + 
-    facet_grid(y$age ~ y$tissue) + 
-    theme_classic() + 
-    guides(color = F) + 
-    scale_color_manual(values = mycolors) + 
-    theme(axis.text.x = element_blank(), 
-          plot.margin = unit(c(0,0,0,0), "cm"), 
-          axis.title = element_blank()) 
-  
-ggsave("./outputs/MtD2_proportion_set1.pdf", height = 4.5, width=8)
-```
-
-
-
-**********
-
-# Figure 2
-
-## Figure 2C
-
-```{r}
-sub <- tmp[tmp$Experiment == "Set1",] #Cohort #1
-sub <- sub[sub$condition != "Cre",] #Mitofat mice
-
-##Ordering Factors
-sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
-sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
-
-
-ggplot(sub, aes(x = age, fill = Major)) +
-    geom_bar(position = "fill")  + 
-    coord_flip() + 
-    facet_grid(tissue~.) + 
-    theme_classic() + 
-    scale_fill_manual(values = tableau_color_pal()(10))
-ggsave("./outputs/proportion_chart_set1.pdf")
-```
-
-## Figure 2D
-
-Same code for part of Figure 1E
-```{r}
 y <- sub %>% group_by(cluster.sq, tissue, age, mtD2_pos, .drop = F) %>%
     summarise(n = n()) %>%
     ungroup() %>%
@@ -490,26 +417,60 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
 
 
 
-**********************
-#Figure 3
+**********
 
-## Figure 3C
+# Figure 2
+
+## Figure 2E
+
+```{r}
+sub <- tmp[tmp$Experiment == "Set1",] #Cohort #1
+sub <- sub[sub$condition != "Cre",] #Mitofat mice
+
+##Ordering Factors
+sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
+sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
+
+y <- sub %>% group_by(cluster.sq, tissue, age, mtD2_pos, .drop = F) %>%
+    summarise(n = n()) %>%
+    ungroup() %>%
+    complete(cluster.sq, tissue, age, mtD2_pos,
+             fill = list(n = 0))
+y <- na.omit(y)
+
+#One more layer of summary
+y <- y %>% group_by(cluster.sq, tissue, age) %>%
+    mutate(sum = sum(n)) 
+
+#Scaling Values
+y$scale <- y$n/y$sum
+y$scale[is.nan(y$scale)] <- 0
+y <- na.omit(y)
+
+#Isolate only the "yes" cells for Bar Graph
+y <- y[y$mtD2_pos == "Yes",]
+y$age <- factor(y$age, levels = c("5mo", "20mo"))
+y$axis <- 1
+
+update_geom_defaults("point", list(alpha=1))
+ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
+    geom_bar(stat = "identity") + 
+    geom_point(aes(color = as.factor(cluster.sq), y = axis*75, size = sum)) + 
+    coord_polar() + 
+    facet_grid(y$age ~ y$tissue) + 
+    theme_classic() + 
+    guides(color = F) + 
+    scale_color_manual(values = mycolors) + 
+    theme(axis.text.x = element_blank(), 
+          plot.margin = unit(c(0,0,0,0), "cm"), 
+          axis.title = element_blank()) 
+```
+
+## Figure 2J
 ```{r}
 sub <- tmp[tmp$Experiment == "Set2",] #Isolating Cohort 2
 sub <- sub[sub$condition != "Cre",] #Isolating Mitofat
 
-ggplot(sub, aes(x = chow, fill = Major)) +
-    geom_bar(position = "fill")  + 
-    coord_flip() + 
-    facet_grid(tissue~.) + 
-    theme_classic() + 
-    scale_fill_manual(values = tableau_color_pal()(10))
-ggsave("./outputs/proportion_chart_set2.pdf")
-```
-
-## Figure 3D
-
-```{r}
 sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
 
 y <- sub %>% group_by(cluster.sq, tissue, chow, mtD2_pos, .drop = F) %>%
@@ -530,45 +491,21 @@ y <- na.omit(y)
 
 #Isolate only the "yes" cells for Bar Graph
 y <- y[y$mtD2_pos == "Yes",]
-y$tissue <- factor(y$tissue, levels = c("eWAT", "iWAT", "BAT"))
 y$axis <- 1
 
 update_geom_defaults("point", list(alpha=1))
-
-labels <- NULL
-pal <- tableau_color_pal()(10)
-names(pal) <- sort(unique(clusters2Type$Major))
-clusters <- unique(clusters2Type$cluster.sq)
-major <- sort(unique(clusters2Type$Major))
-for(i in seq_along(clusters)) {
-  count <- as.numeric(i)
-  if (i == 1) {
-    labels <- ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
-      geom_bar(stat = "identity") +
-      geom_point(aes(color = as.factor(cluster.sq), y = axis*70, size = sum)) + 
-      geom_rect(mapping=aes_string(xmin=(count-0.5), xmax=(count+0.5), ymin=85, ymax=100), fill = unname(pal[clusters2Type[i,"Major"]])) 
-      
-      
-      
-  }
-  else{
-    labels <- labels + geom_rect(mapping=aes_string(xmin=(count-0.5), xmax=(count+0.5), ymin=85, ymax=100), fill = unname(pal[clusters2Type[i,"Major"]]))
-  }
-}
-
-labels + 
-  geom_hline(aes(yintercept=85)) + 
-  geom_hline(aes(yintercept=100)) + 
+ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
+    geom_bar(stat = "identity") + 
+    geom_point(aes(color = as.factor(cluster.sq), y = axis*75, size = sum)) + 
     coord_polar() + 
-    facet_grid(y$tissue ~ y$chow) + 
+    facet_grid(y$tissue ~ y$chow ) + 
     theme_classic() + 
     guides(color = F) + 
     scale_color_manual(values = mycolors) + 
     theme(axis.text.x = element_blank(), 
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
-
-ggsave("./outputs/MtD2_proportion_set2.pdf", height = 6.75, width=8)
+labs(size = "Number of Cells")
 ```
 
 

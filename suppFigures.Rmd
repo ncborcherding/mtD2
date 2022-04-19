@@ -25,9 +25,14 @@ library(tidyr)
 library(ggthemes)
 library(readxl)
 library(RColorBrewer)
+library(patchwork)
 ```
 
+# Supplementary Figure S1
+
 # Examining Cellular Distribution and markers for clusters
+
+## Figure S1A
 ```{r}
 tmp <- readRDS("./data/processed/integratedDF.rds")
 
@@ -38,16 +43,16 @@ table <- table %>%
 
 table$scale <- table$Freq/table$sum
 
-
+#Graphing the Barplot
 ggplot(table, aes(x = Var1, y = scale, fill = Var2)) +
   geom_bar(stat = "identity", position = "fill") + 
   coord_flip() + 
   scale_fill_manual(values = viridis_pal()(3)) 
   #theme_void() + 
  # guides(fill = F)
-ggsave("distribution.pdf", height = 4, width = 3)
 
 
+#Base UMAP Plot to use for Density
 plot <- ggplot(tmp, aes(x = X1, y = X2)) + 
   geom_point(color = "grey", size = 0.5, stroke = 0) + 
   theme_void()
@@ -76,12 +81,11 @@ p3 <- plot +
     theme(strip.background = element_blank(),
       strip.text = element_blank())
 
-library(patchwork)
+
 p1 + p2 + p3 + plot_layout(ncol = 1)
-ggsave("distribution.png", height = 9, width = 3, dpi = 600)
 ```
 
-# heatmap of markers
+## Figure S1B
 ```{r}
 tmp2 <- tmp[,c(1,11:45)]
 heatmap <- tmp2 %>%
@@ -112,14 +116,10 @@ colors <- list(cluster = clusters)
 
 
 #Plotting
-
-pdf("Marker.hetmap.pdf", height = 6, width = 5)
-pheatmap::pheatmap(t(matrix), scale = "none", show_colnames = FALSE, annotation_col = headers, annotation_colors = colors, fontsize = 6, color = viridis_pal()(50))
-dev.off()
-
-
-
+pheatmap::pheatmap(t(matrix), scale = "none", show_colnames = FALSE, annotation_col = headers, annotation_colors = colors, fontsize = 6, color = viridis_pal()(50)) 
 ```
+
+## Figure S1C
 
 ```{r}
 '%!in%' <- Negate("%in%")
@@ -128,7 +128,6 @@ subPlot <- function(dat, marker, cut.point, sample.size) {
   dat2 <- dat2[sample(nrow(dat2), sample.size),]
   return(dat2)
 }
-
 
 CD45 <- ggplot(subPlot(tmp, 'CD45', 0.99, 100000), aes(x = X1, y = X2)) + 
   geom_point(aes(color = normalize(CD45)), size = 0.5) + 
@@ -207,5 +206,9 @@ CD64 <- ggplot(subPlot(tmp, 'CD64', 0.99, 100000), aes(x = X1, y = X2)) +
 
 
 CD45 + TCRb + Ly6C + Ly6G + CD11b + CD11c +  MHC.II  + CD206 + CD64 + plot_layout(ncol = 3)
-ggsave("myeloidMarkers.png", height = 9, width = 10.5, dpi = 600)
 ```
+
+# Overlay Analysis
+
+Function for overlay analysis of differing spectral flow panels can be found in the github repository in the "R" directory. We are currently working on validating the newer panel and have not provided the raw data here as of yet. 
+

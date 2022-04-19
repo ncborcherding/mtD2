@@ -1,0 +1,82 @@
+sample_id,tissue,condition,age,Diet,Experiment,file_origin,adipose.processed
+Set1_BAT-1,BAT,Cre,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-BAT-1-5moCre-_Unmixed.fcs,0.077
+Set1_BAT-2,BAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-BAT-2-5moMitoFat_Unmixed.fcs,0.084
+Set1_BAT-3,BAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-BAT-3-5moMitoFat_Unmixed.fcs,0.109
+Set1_BAT-4,BAT,Cre,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-BAT-4-20moCre-_Unmixed.fcs,0.109
+Set1_BAT-5,BAT,MitoFat,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-BAT-5-20moMitoFat_Unmixed.fcs,0.142
+Set1_BAT-6,BAT,MitoFat,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-BAT-6-20moMitoFat_Unmixed.fcs,0.152
+Set1_BAT-7,BAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-BAT-11-25 1-5mo MitoFat_Unmixed.fcs,0.059
+Set1_BAT-8,BAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-BAT-11-25 2-5mo MitoFat_Unmixed.fcs,0.086
+Set1_BAT-9,BAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-BAT-11-25 3-5mo MitoFat_Unmixed.fcs,0.071
+Set1_BAT-10,BAT,MitoFat,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-BAT-11-25 4-20mo MitoFat_Unmixed.fcs,0.076
+Set1_BAT-11,BAT,MitoFat,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-BAT-11-25 5-20mo MitoFat_Unmixed.fcs,0.125
+Set1_BAT-12,BAT,MitoFat,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-BAT-11-25 6-20mo MitoFat_Unmixed.fcs,0.097
+Set1_eWAT-1,eWAT,Cre,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-eWAT-1-5moCre-_Unmixed.fcs,0.329
+Set1_eWAT-2,eWAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-eWAT-2-5moMitoFat_Unmixed.fcs,0.308
+Set1_eWAT-3,eWAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-eWAT-3-5moMitoFat_Unmixed.fcs,0.442
+Set1_eWAT-4,eWAT,Cre,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-eWAT-4-20moCre-_Unmixed.fcs,0.84
+Set1_eWAT-5,eWAT,MitoFat,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-eWAT-5-20moMitoFat_Unmixed.fcs,0.476
+Set1_eWAT-6,eWAT,MitoFat,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-eWAT-6-20moMitoFat_Unmixed.fcs,0.683
+Set1_eWAT-7,eWAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-eWAT-11-25 1-5mo MitoFat_Unmixed.fcs,0.187
+Set1_eWAT-8,eWAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-eWAT-11-25 2-5mo MitoFat_Unmixed.fcs,0.281
+Set1_eWAT-9,eWAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-eWAT-11-25 3-5mo MitoFat_Unmixed.fcs,0.24
+Set1_eWAT-10,eWAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-eWAT-11-25 4-20mo MitoFat_Unmixed.fcs,0.286
+Set1_eWAT-11,eWAT,MitoFat,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-eWAT-11-25 5-20mo MitoFat_Unmixed.fcs,0.583
+Set1_eWAT-12,eWAT,MitoFat,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-eWAT-11-25 6-20mo MitoFat_Unmixed.fcs,0.406
+Set1_iWat-1,iWAT,Cre,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-iWAT-1-5moCre-_Unmixed.fcs,0.202
+Set1_iWat-2,iWAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-iWAT-2-5moMitoFat_Unmixed.fcs,0.196
+Set1_iWat-3,iWAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-iWAT-3-5moMitoFat_Unmixed.fcs,0.251
+Set1_iWat-4,iWAT,Cre,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-iWAT-4-20moCre-_Unmixed.fcs,0.415
+Set1_iWat-5,iWAT,MitoFat,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-iWAT-5-20moMitoFat_Unmixed.fcs,0.266
+Set1_iWat-6,iWAT,MitoFat,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-iWAT-6-20moMitoFat_Unmixed.fcs,0.4
+Set1_iWat-7,iWAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-iWAT-11-25 1-5mo MitoFat_Unmixed.fcs,0.119
+Set1_iWat-8,iWAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-iWAT-11-25 2-5mo MitoFat_Unmixed.fcs,0.197
+Set1_iWat-9,iWAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-iWAT-11-25 3-5mo MitoFat_Unmixed.fcs,0.202
+Set1_iWat-10,iWAT,MitoFat,5mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-iWAT-11-25 4-20mo MitoFat_Unmixed.fcs,0.16
+Set1_iWat-11,iWAT,MitoFat,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-iWAT-11-25 5-20mo MitoFat_Unmixed.fcs,0.192
+Set1_iWat-12,iWAT,MitoFat,20mo,chow,Set1,2020-11-23 MitoFat 5mo vs 20mo-iWAT-11-25 6-20mo MitoFat_Unmixed.fcs,0.134
+Set2_iWAT-1,iWAT,Cre,5mo,chow,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-1 MitoFat chow_Unmixed.fcs,0.402
+Set2_BAT-1,BAT,MitoFat,5mo,chow,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-1 MitoFat chow_Unmixed.fcs,0.09
+Set2_BAT-2,BAT,MitoFat,5mo,chow,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-2 MitoFat chow_Unmixed.fcs,0.091
+Set2_BAT-3,BAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-3 MitoFat HFD_Unmixed.fcs,0.145
+Set2_BAT-4,BAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-4 MitoFat HFD_Unmixed.fcs,0.139
+Set2_BAT-5,BAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-5 MitoFat LP-HFD_Unmixed.fcs,0.127
+Set2_BAT-6,BAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-6 MitoFat LP-HFD_Unmixed.fcs,0.08
+Set2_BAT-7,BAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-7 MitoFat LP-HFD_Unmixed.fcs,0.084
+Set2_BAT-8,BAT,Cre,5mo,chow,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-8 Cre- HFD_Unmixed.fcs,0.157
+Set2_BAT-10,BAT,MitoFat,5mo,chow,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-10 MitoFat chow_Unmixed.fcs,0.088
+Set2_BAT-11,BAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-11 MitoFat LP-HFD_Unmixed.fcs,0.117
+Set2_BAT-12,BAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-12 MitoFat LP-HFD_Unmixed.fcs,0.1
+Set2_BAT-13,BAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-13 MitoFat LP-HFD_Unmixed.fcs,0.112
+Set2_BAT-14,BAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-14 MitoFat HFD_Unmixed.fcs,0.214
+Set2_BAT-15,BAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-15 MitoFat HFD_Unmixed.fcs,0.219
+Set2_BAT-16,BAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-BAT-16 MitoFat HFD_Unmixed.fcs,0.16
+Set2_eWAT-1,eWAT,MitoFat,5mo,chow,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-1 MitoFat chow_Unmixed.fcs,0.771
+Set2_eWAT-2,eWAT,MitoFat,5mo,chow,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-2 MitoFat chow_Unmixed.fcs,0.424
+Set2_eWAT-3,eWAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-3 MitoFat HFD_Unmixed.fcs,0.366
+Set2_eWAT-4,eWAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-4 MitoFat HFD_Unmixed.fcs,0.355
+Set2_eWAT-5,eWAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-5 MitoFat LP-HFD_Unmixed.fcs,0.423
+Set2_eWAT-6,eWAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-6 MitoFat LP-HFD_Unmixed.fcs,0.443
+Set2_eWAT-7,eWAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-7 MitoFat LP-HFD_Unmixed.fcs,0.401
+Set2_eWAT-8,eWAT,Cre,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-8 Cre- HFD_Unmixed.fcs,0.451
+Set2_eWAT-10,eWAT,MitoFat,5mo,chow,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-10 MitoFat chow_Unmixed.fcs,0.448
+Set2_eWAT-11,eWAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-11 MitoFat LP-HFD_Unmixed.fcs,0.366
+Set2_eWAT-12,eWAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-12 MitoFat LP-HFD_Unmixed.fcs,0.38
+Set2_eWAT-13,eWAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-13 MitoFat LP-HFD_Unmixed.fcs,0.43
+Set2_eWAT-14,eWAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-14 MitoFat HFD_Unmixed.fcs,0.375
+Set2_eWAT-15,eWAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-15 MitoFat HFD_Unmixed.fcs,0.38
+Set2_eWAT-16,eWAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-eWAT-16 MitoFat HFD_Unmixed.fcs,0.354
+Set2_iWat-2,iWAT,MitoFat,5mo,chow,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-2 MitoFat chow_Unmixed.fcs,0.257
+Set2_iWat-3,iWAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-3 MitoFat HFD_Unmixed.fcs,0.432
+Set2_iWat-4,iWAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-4 MitoFat HFD_Unmixed.fcs,0.438
+Set2_iWat-5,iWAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-5 MitoFat LP-HFD_Unmixed.fcs,0.377
+Set2_iWat-6,iWAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-6 MitoFat LP-HFD_Unmixed.fcs,0.465
+Set2_iWat-7,iWAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-7 MitoFat LP-HFD_Unmixed.fcs,0.439
+Set2_iWat-8,iWAT,Cre,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-8 Cre- HFD_Unmixed.fcs,0.551
+Set2_iWat-10,iWAT,MitoFat,5mo,chow,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-10 MitoFat chow_Unmixed.fcs,0.215
+Set2_iWat-11,iWAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-11 MitoFat LP-HFD_Unmixed.fcs,0.326
+Set2_iWat-12,iWAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-12 MitoFat LP-HFD_Unmixed.fcs,0.326
+Set2_iWat-13,iWAT,MitoFat,5mo,LP-HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-13 MitoFat LP-HFD_Unmixed.fcs,0.385
+Set2_iWat-14,iWAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-14 MitoFat HFD_Unmixed.fcs,0.456
+Set2_iWat-15,iWAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-15 MitoFat HFD_Unmixed.fcs,0.449
+Set2_iWat-16,iWAT,MitoFat,5mo,HFD,Set2,2021-02-09 MitoFat chow HFD LP-HFD-iWAT-16 MitoFat HFD_Unmixed.fcs,0.427
