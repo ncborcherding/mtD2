@@ -20,4 +20,5 @@ regulate mitochondria transfer.
 <img align="center" src="www/newFigure1_v2.png">
 
 ## Data
-Flow cytometry standard (.fcs) and processed data larger than 100 mB are avaialble to download via the zenodo link (submission in process)
+- Processed data is available in the github repo under /data/IntegratedDF.rds
+- Unprocessed flow cytometry standard (.fcs) will be available at [here](https://zenodo.org/record/6538130) (embargoed until publication).
