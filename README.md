@@ -1,4 +1,4 @@
-# Tracking intercellular mitochodnria transfer from adipocytes to immune cells.
+# Tracking intercellular mitochodnria transfer from adipocytes.
 Dietary lipids regulate the transfer of adipocyte-derived mitochondria to a network of immune cells in white, beige, and brown fat.
 
 
