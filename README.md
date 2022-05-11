@@ -1,5 +1,6 @@
-# mtD2
-Integrated Flow Analysis of mtD2 transfer
+# Tracking intercellular mitochodnria transfer from adipocytes to immune cells.
+Dietary lipids regulate the transfer of adipocyte-derived mitochondria to a network of immune cells in white, beige, and brown fat.
+
 
 ## Abstract
 Obesity is a highly prevalent metabolic disease that increases the risk of developing many other disorders, such as type 2 diabetes. 
