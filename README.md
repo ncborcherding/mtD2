@@ -8,15 +8,15 @@ Adipocytes transfer mitochondria to macrophages in white adipose tissue (WAT) an
 <img align="center" src="www/newFigure1_v2.png">
 
 ## Repository Structure
-
-├── ./R #this includes the mnn.overlay function written for supplemental figures
+```
+├── ./R #this includes the mnn.overlay function written for supplemental figures. 
 ├── ./data
-│   ├── /proccessed #contain inegratedDF.rds, which has the all info used to generate the UMAPs
-├── ./tables #summary and annotation information
-├── ./www #contains the abstract figure for the repository
-├── README.md #what you are reading right now
-└── mainFigures.Rmd #All the code used to generate R-based main figures
-
+│      └── /proccessed #contain inegratedDF.rds, which has the all info used to generate the UMAPs. 
+├── ./tables #summary and annotation information. 
+├── ./www #contains the abstract figure for the repository. 
+├── README.md #what you are reading right now. 
+└── mainFigures.Rmd #All the code used to generate R-based main figures. 
+```
 ## Data
 - Processed data is available in the github repo under **./data/IntegratedDF.rds**
 - Unprocessed flow cytometry standard (.fcs) will be available at [here](https://zenodo.org/record/6538130) (embargoed until publication). The code will work if these .fcs files are downloaded and then placed in the ./data directory.
