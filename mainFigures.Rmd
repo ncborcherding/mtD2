@@ -1,10 +1,10 @@
 ---
-title: MtD2 transfer from immune cells in mice.
+title: MtD2 transfer adipocytes to immune cells in mice.
 author: 
 - name: Nick Borcherding
   email: ncborch@gmail.com
   affiliation: Washington University in St. Louis, School of Medicine, St. Louis, MO, USA
-date: "April 3rd 2021"
+date: "June 1st 2022"
 output:
   BiocStyle::html_document:
     toc_float: true
@@ -29,7 +29,6 @@ library(tidyr)
 library(ggthemes)
 library(readxl)
 library(slingshot)
-library(phateR)
 library(RColorBrewer)
 library(patchwork)
 ```
@@ -38,7 +37,7 @@ library(patchwork)
 The following is the initial data processing steps taken
 1) Loading the FCS files as a flowset
 2) Transforming the markers using estimateLogicle
-3) Creating a singlecell object
+3) Creating a single-cell object
 
 ## Load Data Inventory
 
@@ -419,7 +418,7 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
 
 **********
 
-# Figure 2
+# Clock-face Diagrams for Cohort 1 and 2
 
 ## Figure 2E
 
@@ -466,7 +465,7 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
           axis.title = element_blank()) 
 ```
 
-## Figure 2J
+## Figure 3E
 ```{r}
 sub <- tmp[tmp$Experiment == "Set2",] #Isolating Cohort 2
 sub <- sub[sub$condition != "Cre",] #Isolating Mitofat
