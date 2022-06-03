@@ -180,7 +180,7 @@ Figure 1 is a basic survey of the combined data, including the defining cell typ
 ```{r}
 dir.create("./outputs")
 tmp <- readRDS("./data/processed/integratedDF.rds")
-mycolors <- RColorBrewer::colorRampPalette(brewer.pal(8, "Set1"))(length(unique(tmp$cluster.sq)))
+mycolors <- colorRampPalette(brewer.pal(8, "Set1"))(length(unique(tmp$cluster.sq)))
 
 #Embedded positions of the UMAP are X1 (UMAP1) and X2 (UMAP2)
 
@@ -201,6 +201,7 @@ tmp <- merge(tmp, annot, by.x = "cluster.sq", by.y = "Cluster")
 
 
 ## Figure 1C
+
 ```{r}
 list <- list(Macs = c(3,5), 
              Mono = c(11,21),
@@ -223,7 +224,13 @@ for(i in seq_along(clusters)) {
   tmp$cellType[i] <- names(list)[grep(paste0("\\b", clusters[i], "\\b") , list)]
 }
 
-summary <- tmp %>%
+################################
+#Subset just the 5 mo chow mice
+###############################
+sub <- tmp[tmp$age == "5mo",]
+sub <- sub[sub$Diet == "chow",]
+
+summary <- sub %>%
  dplyr::group_by(sample_id, cellType) %>%
   count()
 
@@ -267,6 +274,18 @@ summary$tissue <- ifelse(summary$tissue == "iWat", "iWAT", summary$tissue)
 summary$tissue <- factor(summary$tissue, levels = c("eWAT", "iWAT", "BAT"))
 summary$cellType <- factor(summary$cellType, levels = c("Macs", "Mono", "Neutr", "DCs", "Eos", "ILC2", "NK", "Tcells", "Bcells", "NI"))
 
+data_summary <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      sd = sd(x[[col]], na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
 
 df2 <- data_summary(summary, varname="est.num.per.gram", 
                     groupnames=c("tissue", "cellType"))
@@ -279,72 +298,99 @@ ggplot(df2, aes(x = cellType, y = est.num.per.gram, fill = tissue)) +
   theme_classic() + 
   ylab("Cells/gram adipose") + 
   theme(axis.title.x = element_blank())
+ggsave("./outputs/Figure1C.pdf", height = 3, width = 6)
 
 
 stat.test <- summary %>%
   group_by(cellType) %>%
   t_test(est.num.per.gram ~ tissue) 
+
+write.csv(stat.test, "./outputs/Figure1C.stats.csv")
 ```
 
 ## Figure 1D
 ```{r}
 tmp$mtD2_pos <- ifelse(tmp$mtD2 >= 1.5, "Yes", "No")
 tmp$tissue <- factor(tmp$tissue, levels = c("eWAT", "iWAT", "BAT"))
-EWAT <- tmp[tmp$tissue == "eWAT",]
-IWAT <- tmp[tmp$tissue == "iWAT",]
-BAT <- tmp[tmp$tissue == "BAT",]
+
+################################
+#Subset just the 5 mo chow mice
+###############################
+sub <- tmp[tmp$age == "5mo",]
+sub <- sub[sub$Diet == "chow",]
+ymax <- round(max(sub$X2)) + 2
+ymin <- round(min(sub$X2)) - 2
+xmax <- round(max(sub$X1)) + 2
+xmin <- round(min(sub$X1)) - 2
+
+
+EWAT <- sub[sub$tissue == "eWAT",]
+IWAT <- sub[sub$tissue == "iWAT",]
+BAT <- sub[sub$tissue == "BAT",]
 tissue.list <- list(EWAT, IWAT, BAT)
 
 plot1 <- ggplot(data = EWAT, aes(x=X1, y=X2)) +
   geom_point(stroke = 0, size = 0.5, color = "grey") 
-plot1 <- plot1 + stat_density_2d(subset(EWAT, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..level..), geom = "polygon", h =2)  + 
+plot1 <- plot1 + stat_density_2d(subset(EWAT, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..level..), geom = "polygon")  + 
     scale_fill_viridis() + 
     guides(fill = F) + 
     theme_void() + 
+  ylim(ymin,ymax) + 
+  xlim(xmin,xmax) +
     theme(strip.background = element_blank(),
       strip.text = element_blank())
 
 plot2 <- ggplot(data = IWAT, aes(x=X1, y=X2)) +
   geom_point(stroke = 0, size = 0.5, color = "grey") 
-plot2 <- plot2 + stat_density_2d(subset(IWAT, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..level..), geom = "polygon", h =2)  + 
+plot2 <- plot2 + stat_density_2d(subset(IWAT, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..level..), geom = "polygon")  + 
     scale_fill_viridis() + 
     guides(fill = F) + 
+    ylim(ymin,ymax) + 
+  xlim(xmin,xmax) +
     theme_void() + 
     theme(strip.background = element_blank(),
       strip.text = element_blank())
 
 plot3 <- ggplot(data = BAT, aes(x=X1, y=X2)) +
   geom_point(stroke = 0, size = 0.5, color = "grey") 
-plot3 <- plot3 + stat_density_2d(subset(BAT, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..level..), geom = "polygon", h =2)  + 
+plot3 <- plot3 + stat_density_2d(subset(BAT, mtD2_pos == "Yes"), mapping = aes(x = X1, y = X2, fill = ..level..), geom = "polygon")  + 
     scale_fill_viridis() + 
     guides(fill = F) + 
+    ylim(ymin,ymax) + 
+  xlim(xmin,xmax) +
     theme_void() + 
     theme(strip.background = element_blank(),
       strip.text = element_blank())
 
 plot1 + plot2 + plot3
+ggsave("./outputs/Figure1D.png", height = 4, width = 12.74, dpi = 600)
 ```
 
 ## Figure 1E
 
-For Figure 1E, we are generating the clock face diagrams for both Cre-negative and MitoFat mice for both young and aged mice, but the figure only utilizes the young mice. 
+For Figure 1E, we are generating the clock face diagrams for both Cre-negative and MitoFat mice.
 
 Cre-negative Clock Diagram
 ```{r}
-sub <- tmp[tmp$Experiment != "Set2",]
+
+sub <- tmp[tmp$age == "5mo",]
 sub <- sub[sub$condition == "Cre",] #Only the Cre-negative samples
-sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
+sub <- sub[sub$Diet == "chow",]
+
+sub$mtD2_pos <- ifelse(sub$mtD2 >= 2, "Yes", "No") #Setting it to 2, small population of fluorescent cells in mitofat
+sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
 
 #Need to use the tidyr complete to be able to properly sum things
-y <- sub %>% group_by(cluster.sq, tissue, age, mtD2_pos, .drop = F) %>%
-    summarise(n = n()) %>%
+y <- sub %>% 
+  group_by(cluster.sq, tissue, mtD2_pos, .drop = F) %>%
+    dplyr::summarise(n = n()) %>%
     ungroup() %>%
-    complete(cluster.sq, tissue, age, mtD2_pos,
+    complete(cluster.sq, tissue, mtD2_pos,
              fill = list(n = 0))
 y <- na.omit(y)
 
 #One more layer of summary
-y <- y %>% group_by(cluster.sq, tissue, age) %>%
+y <- y %>% group_by(cluster.sq, tissue) %>%
     mutate(sum = sum(n)) 
 
 #Scaling Values
@@ -354,40 +400,44 @@ y <- na.omit(y)
 
 #Isolate only the "yes" cells for Bar Graph
 y <- y[y$mtD2_pos == "Yes",]
-y$age <- factor(y$age, levels = c("5mo", "20mo"))
 y$axis <- 1
 
-update_geom_defaults("point", list(alpha=1))
-ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
+cre.neg <- y
+
+ggplot(cre.neg, aes(x = as.factor(cluster.sq), y=scale*100)) +
     geom_bar(stat = "identity") + 
     geom_point(aes(color = as.factor(cluster.sq), y = axis*70, size = sum)) + 
     coord_polar() + 
-    facet_grid(y$age ~ y$tissue) + 
+    facet_grid( ~ y$tissue) + 
     theme_classic() + 
-    guides(color = F) + 
+    guides(color = "none", size = "none") + 
     scale_color_manual(values = mycolors) + 
     theme(axis.text.x = element_blank(), 
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
-labs(size = "Number of Cells")
+ggsave("./outputs/Figure1F_CreNegative.pdf", height = 4.5, width=8)
 ```
 
 MitoFat Clock Diagram
-```{r}
-sub <- tmp[tmp$Experiment == "Set1",]
-sub <- sub[sub$condition != "Cre",] #Only the MitoFat Samples
-sub$age <- factor(sub$age, levels = c("5mo", "20mo"))
-sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
 
-y <- sub %>% group_by(cluster.sq, tissue, age, mtD2_pos, .drop = F) %>%
-    summarise(n = n()) %>%
+```{r}
+sub <- tmp[tmp$age == "5mo",]
+sub <- sub[sub$condition != "Cre",] #Only the MitoFat Samples
+sub <- sub[sub$Diet == "chow",]
+sub$tissue <- factor(sub$tissue, levels = c("eWAT", "iWAT", "BAT"))
+sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
+
+y <- sub %>% 
+    group_by(cluster.sq, tissue, mtD2_pos, .drop = F) %>%
+    dplyr::summarise(n = n()) %>%
     ungroup() %>%
-    complete(cluster.sq, tissue, age, mtD2_pos,
+    complete(cluster.sq, tissue, mtD2_pos,
              fill = list(n = 0))
 y <- na.omit(y)
 
 #One more layer of summary
-y <- y %>% group_by(cluster.sq, tissue, age) %>%
+y <- y %>% 
+  group_by(cluster.sq, tissue) %>%
     mutate(sum = sum(n)) 
 
 #Scaling Values
@@ -397,21 +447,23 @@ y <- na.omit(y)
 
 #Isolate only the "yes" cells for Bar Graph
 y <- y[y$mtD2_pos == "Yes",]
-y$age <- factor(y$age, levels = c("5mo", "20mo"))
 y$axis <- 1
 
+mitofat <- y
+
 update_geom_defaults("point", list(alpha=1))
-ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
+ggplot(mitofat, aes(x = as.factor(cluster.sq), y=scale*100)) +
     geom_bar(stat = "identity") + 
-    geom_point(aes(color = as.factor(cluster.sq), y = axis*75, size = sum)) + 
+    geom_point(aes(color = as.factor(cluster.sq), y = axis*70, size = sum)) + 
     coord_polar() + 
-    facet_grid(y$age ~ y$tissue) + 
+    facet_grid( ~ tissue) + 
     theme_classic() + 
-    guides(color = F) + 
+    guides(color = "none", size = "none") + 
     scale_color_manual(values = mycolors) + 
     theme(axis.text.x = element_blank(), 
           plot.margin = unit(c(0,0,0,0), "cm"), 
           axis.title = element_blank()) 
+ggsave("./outputs/Figure1F_MitoFat.pdf", height = 4.5, width=8)
 ```
 
 
@@ -473,7 +525,7 @@ sub <- sub[sub$condition != "Cre",] #Isolating Mitofat
 sub$mtD2_pos <- ifelse(sub$mtD2 >= 1.5, "Yes", "No")
 
 y <- sub %>% group_by(cluster.sq, tissue, chow, mtD2_pos, .drop = F) %>%
-    summarise(n = n()) %>%
+    dplyr::summarise(n = n()) %>%
     ungroup() %>%
     complete(cluster.sq, tissue, chow, mtD2_pos,
              fill = list(n = 0))
@@ -503,8 +555,7 @@ ggplot(y, aes(x = as.factor(cluster.sq), y=scale*100)) +
     scale_color_manual(values = mycolors) + 
     theme(axis.text.x = element_blank(), 
           plot.margin = unit(c(0,0,0,0), "cm"), 
-          axis.title = element_blank()) 
-labs(size = "Number of Cells")
+          axis.title = element_blank())  
 ```
 
 
