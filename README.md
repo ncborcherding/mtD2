@@ -19,7 +19,7 @@ Adipocytes transfer mitochondria to macrophages in white adipose tissue (WAT) an
 ```
 ## Data
 - Processed data is available in the github repo under **./data/IntegratedDF.rds**
-- Unprocessed flow cytometry standard (.fcs) will be available at [here](https://zenodo.org/record/6538130) (embargoed until publication). The code will work if these .fcs files are downloaded and then placed in the ./data directory.
+- Unprocessed flow cytometry standard (.fcs) will be available at [here](https://zenodo.org/record/6929098) (embargoed until publication). The code will work if these .fcs files are downloaded and then placed in the ./data directory.
 
 ## Constact
 
